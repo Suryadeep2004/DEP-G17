@@ -1,0 +1,83 @@
+<style>
+    .sidebar {
+        width: 260px;
+        background-color: #5a4e1e; 
+        color: #fdfdfd;
+        position: fixed;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0;
+        box-shadow: 4px 0 8px rgba(0, 0, 0, 0.2);
+        font-family: 'Arial', sans-serif;
+    }
+
+    .sidebar h3 {
+        font-size: 1.6rem;
+        font-weight: bold;
+        margin: 0; 
+        background-color: #3f3312;
+        color: #ffffff; 
+        padding: 20px 0; 
+        text-transform: uppercase;
+        text-align: center;
+        letter-spacing: 1px;
+        width: 100%;
+        box-sizing: border-box; 
+    }
+
+    .sidebar a {
+        text-decoration: none;
+        font-size: 1.1rem;
+        color: #fdfdfd;
+        margin: 12px 0;
+        padding: 12px 20px;
+        width: 100%;
+        border-radius: 8px;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px; 
+        box-sizing: border-box;
+    }
+
+    .sidebar a:hover {
+        background-color: #c9a33b; 
+        color: #3f3312; 
+        transform: scale(0.95);
+    }
+
+    .sidebar a:active {
+        background-color: #b8932d; 
+        color: #ffffff;
+    }
+
+    .sidebar a img {
+        width: 20px; 
+        height: 20px; 
+        object-fit: contain; 
+    }
+</style>
+
+<div class="sidebar">
+    <h3>Hostel Admin Dashboard</h3>
+    <a href="/admin_verify">
+        <img src="{{ url_for('static', filename='icons/verify_icon.png') }}" alt="Verify Icon">Verify Users
+    </a>
+    <a href="/manage_hostels">
+        <img src="{{ url_for('static', filename='icons/hostel_icon.png') }}" alt="Hostel Icon">Manage Hostels
+    </a>
+    <a href="/admin_logs">
+        <img src="{{ url_for('static', filename='icons/logs_icon.png') }}" alt="Logs Icon">View Logs
+    </a>
+    <a href="/system_settings">
+        <img src="{{ url_for('static', filename='icons/settings_icon.png') }}" alt="Settings Icon">System Settings
+    </a>
+    <a href="/admin_profile">
+        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="Profile Icon">Edit Profile
+    </a>
+    <a href="/admin_logout">
+        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="Logout Icon">Logout
+    </a>
+</div>
