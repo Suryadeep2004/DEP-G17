@@ -1,8 +1,16 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from app.models import CustomUser, Student, Caretaker, Faculty, Admin
 from app.database import db
+from flask_mail import Message
+from app import mail
+import random
+import time
 
 auth_bp = Blueprint("auth", __name__)
+
+otp_generated = False
+otp_value = None
+otp_timestamp = None
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -49,22 +57,69 @@ def login():
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
+    global otp_generated, otp_value, otp_timestamp
+
     if request.method == "POST":
-        name = request.form.get("name")
-        email = request.form.get("email")
-        password = request.form.get("password")
-        confirm_password = request.form.get("confirm_password")
-        
-        if password == confirm_password:
-            hashed_password = generate_password_hash(password, method='sha256')
-            new_user = CustomUser(name=name, email=email, password=hashed_password)
-            db.session.add(new_user)
-            db.session.commit()
-            flash("Registration successful!", "success")
-            return redirect(url_for("auth.login"))
-        else:
-            flash("Passwords do not match", "danger")
-    return render_template("auth/register.html", title="Register")
+        if 'generate_otp' in request.form:
+            name = request.form.get("name")
+            email = request.form.get("email")
+            password = request.form.get("password")
+
+            # Store form data in session
+            session['name'] = name
+            session['email'] = email
+            session['password'] = password
+
+            # Generate a 6-digit OTP
+            otp_value = random.randint(100000, 999999)
+            otp_generated = True
+            otp_timestamp = time.time()
+
+            # Send OTP via email
+            msg = Message("Your OTP for Hostel Management System", sender="johnDoe18262117@gmail.com", recipients=[email])
+            msg.body = f"Your OTP is {otp_value}. It will expire in 5 minutes."
+            mail.send(msg)
+
+            flash("OTP has been sent to your email.", "info")
+            return render_template("auth/register.html", otp_generated=otp_generated)
+
+        elif 'verify_otp' in request.form:
+            otp_input = request.form.get("otp")
+
+            # Check if OTP is correct and not expired
+            if otp_value and otp_input and int(otp_input) == otp_value and (time.time() - otp_timestamp) < 300:
+                # Retrieve form data from session
+                name = session.get('name')
+                email = session.get('email')
+                password = session.get('password')
+
+                new_user = CustomUser(name=name, email=email, password=password)
+                db.session.add(new_user)
+                db.session.commit()
+
+                new_student = Student(student_id=new_user.id)
+                db.session.add(new_student)
+                db.session.commit()
+
+                otp_generated = False
+                otp_value = None
+                otp_timestamp = None
+
+                # Clear form data from session
+                session.pop('name', None)
+                session.pop('email', None)
+                session.pop('password', None)
+
+                flash("Registration successful! You can now log in.", "success")
+                return redirect(url_for("auth.login"))
+            else:
+                otp_generated = False
+                otp_value = None
+                otp_timestamp = None
+                flash("Invalid or expired OTP. Please try again.", "danger")
+                return render_template("auth/register.html", otp_generated=otp_generated)
+
+    return render_template("auth/register.html", otp_generated=otp_generated)
 
 @auth_bp.route("/logout")
 def logout():

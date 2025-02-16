@@ -24,10 +24,10 @@ class CustomUser(db.Model):
 class Student(db.Model):
     __tablename__ = 'student'
     student_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), primary_key=True)
-    department = db.Column(db.String(100), nullable=False)
-    student_phone = db.Column(db.String(10), nullable=False)
-    student_roll = db.Column(db.String(15), unique=True, nullable=False)
-    student_year = db.Column(db.Integer, nullable=False)
+    department = db.Column(db.String(100))
+    student_phone = db.Column(db.String(10))
+    student_roll = db.Column(db.String(15), unique=True)
+    student_year = db.Column(db.Integer)
     student_room_no = db.Column(db.String(20))
     student_batch = db.Column(db.String(20))
 
