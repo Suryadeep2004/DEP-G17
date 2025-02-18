@@ -1,0 +1,42 @@
+{% extends "faculty/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Pending Approvals</h2>
+    <div class="row">
+        <div class="col-md-12">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Application ID</th>
+                        <th>Student Name</th>
+                        <th>Department</th>
+                        <th>Arrival</th>
+                        <th>Departure</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for application in pending_applications %}
+                    <tr>
+                        <td>{{ application.application_id }}</td>
+                        <td>{{ application.student.user.name }}</td>
+                        <td>{{ application.student.department }}</td>
+                        <td>{{ application.arrival }}</td>
+                        <td>{{ application.departure }}</td>
+                        <td>{{ application.status }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('faculty.approve_application', application_id=application.application_id) }}">
+                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">Approve</button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">Reject</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
