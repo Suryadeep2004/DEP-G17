@@ -65,17 +65,18 @@ def register():
             email = request.form.get("email")
             password = request.form.get("password")
 
-            # Store form data in session
+            if CustomUser.query.filter_by(email=email).first():
+                flash("Email is already registered. Please use a different email.", "warning")
+                return render_template("auth/register.html", otp_generated=otp_generated)
+
             session['name'] = name
             session['email'] = email
             session['password'] = password
 
-            # Generate a 6-digit OTP
             otp_value = random.randint(100000, 999999)
             otp_generated = True
             otp_timestamp = time.time()
 
-            # Send OTP via email
             msg = Message("Your OTP for Hostel Management System", sender="johnDoe18262117@gmail.com", recipients=[email])
             msg.body = f"Your OTP is {otp_value}. It will expire in 5 minutes."
             mail.send(msg)
@@ -86,9 +87,11 @@ def register():
         elif 'verify_otp' in request.form:
             otp_input = request.form.get("otp")
 
-            # Check if OTP is correct and not expired
+            if not otp_input.isdigit() or len(otp_input) != 6:
+                flash("Invalid OTP format. Please enter a 6-digit number.", "danger")
+                return render_template("auth/register.html", otp_generated=otp_generated)
+
             if otp_value and otp_input and int(otp_input) == otp_value and (time.time() - otp_timestamp) < 300:
-                # Retrieve form data from session
                 name = session.get('name')
                 email = session.get('email')
                 password = session.get('password')
@@ -105,7 +108,6 @@ def register():
                 otp_value = None
                 otp_timestamp = None
 
-                # Clear form data from session
                 session.pop('name', None)
                 session.pop('email', None)
                 session.pop('password', None)
