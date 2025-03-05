@@ -3,8 +3,10 @@ import os
 from .config import Config
 from .database import db
 from flask_mail import Mail
+from flask_migrate import Migrate
 
 mail = Mail()
+migrate = Migrate()
 
 def create_app():
     app = Flask(__name__, template_folder=os.path.join(os.getcwd(), "templates"), static_folder=os.path.join(os.getcwd(), "static"))
@@ -12,6 +14,7 @@ def create_app():
 
     db.init_app(app)
     mail.init_app(app)
+    migrate.init_app(app, db)
 
     from app.index import index_bp
     app.register_blueprint(index_bp)

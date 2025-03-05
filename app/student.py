@@ -2,8 +2,9 @@ from flask import Blueprint, render_template, session, redirect, url_for, reques
 from app.models import CustomUser, Student, InternshipApplication, db
 from werkzeug.utils import secure_filename
 from flask_mail import Message
-from app import mail  # Import the mail object
+from app import mail  
 import os
+from datetime import datetime
 
 student_bp = Blueprint("student", __name__)
 
@@ -19,7 +20,9 @@ def profile():
     if user is None or student is None:
         return redirect(url_for('auth.login'))
 
-    return render_template("student/profile.html", user=user, student=student)
+    internship_application = InternshipApplication.query.filter_by(email=user.email).first()
+
+    return render_template("student/profile.html", user=user, student=student, internship_application=internship_application)
 
 @student_bp.route("/student/internship_form", methods=["GET"])
 def internship_form():
@@ -59,6 +62,10 @@ def submit_internship_form():
 
         id_card.save(os.path.join(uploads_dir, id_card_filename))
         official_letter.save(os.path.join(uploads_dir, official_letter_filename))
+
+        # Convert date strings to Python date objects
+        arrival_date = datetime.strptime(arrival_date, '%Y-%m-%d').date()
+        departure_date = datetime.strptime(departure_date, '%Y-%m-%d').date()
 
         internship_application = InternshipApplication(
             name=name,

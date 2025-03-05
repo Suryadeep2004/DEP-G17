@@ -31,14 +31,13 @@ class Student(db.Model):
     student_room_no = db.Column(db.String(20))
     student_batch = db.Column(db.String(20))
 
-    applications = db.relationship('Application', backref='student', cascade="all, delete")
-
 class Faculty(db.Model):
     __tablename__ = 'faculty'
     faculty_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), primary_key=True)
     department = db.Column(db.String(100), nullable=False)
     faculty_phone = db.Column(db.String(10), unique=True, nullable=False)
     is_hod = db.Column(db.Boolean, default=False)
+    signature = db.Column(db.LargeBinary)
 
     warden = db.relationship('Warden', backref='faculty', uselist=False, cascade="all, delete")
 
@@ -47,11 +46,20 @@ class Caretaker(db.Model):
     caretaker_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), unique=True, nullable=False)
     hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'), nullable=False)
+ 
+class CaretakerHistory(db.Model):
+    __tablename__ = 'caretaker_history'
+    id = db.Column(db.Integer, primary_key=True)
+    caretaker_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='SET NULL'))
+    hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'))
+    start_date = db.Column(db.DateTime, default=db.func.current_timestamp())  
+    end_date = db.Column(db.DateTime)  
 
 class Admin(db.Model):
     __tablename__ = 'admin'
     admin_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), primary_key=True)
     phone = db.Column(db.String(20), unique=True, nullable=False)
+    signature = db.Column(db.LargeBinary)
 
 class Hostel(db.Model):
     __tablename__ = 'hostel'
@@ -87,30 +95,6 @@ class Batch(db.Model):
     number_of_girls = db.Column(db.Integer)
     number_of_boys = db.Column(db.Integer)
 
-class Application(db.Model):
-    __tablename__ = 'application'
-    application_id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id', ondelete='CASCADE'), nullable=False)
-    affiliation = db.Column(db.String(100))
-    address = db.Column(db.String(100))
-    phone = db.Column(db.String(10))
-    faculty_id = db.Column(db.Integer, db.ForeignKey('faculty.faculty_id', ondelete='CASCADE'))
-    arrival = db.Column(db.Date)
-    departure = db.Column(db.Date)
-    instid = db.Column(db.String(100))
-    letter = db.Column(db.String(100))
-    payment_proof = db.Column(db.String(100))
-    status = db.Column(db.String(100), default="Pending")
-    comments = db.Column(db.String(300))
-
-    final_application = db.relationship('ApplicationFinal', backref='application', uselist=False, cascade="all, delete")
-
-class ApplicationFinal(db.Model):
-    __tablename__ = 'application_final'
-    application_id = db.Column(db.Integer, db.ForeignKey('application.application_id', ondelete='CASCADE'), primary_key=True)
-    hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'))
-    room_no = db.Column(db.String(20), db.ForeignKey('room.room_no', ondelete='CASCADE'))
-
 class InternshipApplication(db.Model):
     __tablename__ = 'internship_application'
     id = db.Column(db.Integer, primary_key=True)
@@ -128,3 +112,7 @@ class InternshipApplication(db.Model):
     official_letter = db.Column(db.String(100), nullable=False)
     remarks = db.Column(db.String(300))
     status = db.Column(db.String(50), default="Pending Faculty Approval", nullable=False)
+    faculty_signature_id = db.Column(db.Integer, db.ForeignKey('faculty.faculty_id'))  
+    hod_signature_id = db.Column(db.Integer, db.ForeignKey('faculty.faculty_id'))  
+    admin_signature_id = db.Column(db.Integer, db.ForeignKey('admin.admin_id'))  
+    approval_date = db.Column(db.DateTime, default=db.func.current_timestamp()) 
