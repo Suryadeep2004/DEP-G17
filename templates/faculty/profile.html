@@ -1,32 +1,74 @@
 {% extends "faculty/base.html" %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-0">
     <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="row d-flex align-items-stretch"> <!-- Ensures equal height -->
-                
-                <!-- Profile Card -->
-                <div class="col-md-6">
-                    <div class="card p-4 shadow-sm text-center h-100"> <!-- h-100 ensures same height -->
-                        <div class="d-flex justify-content-center">
-                            <img src="{{ url_for('static', filename='profile_pic.png') }}" class="rounded-circle shadow-sm mb-3" width="80" height="80" alt="Profile Picture">
+        <div class="col-md-8">
+            <!-- Profile Card -->
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="name" class="fw-bold">Name</label>
+                                    <input type="text" class="form-control" id="name" value="{{ user.name }}" readonly>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="email" class="fw-bold">Email</label>
+                                    <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="department" class="fw-bold">Department</label>
+                                    <input type="text" class="form-control" id="department" value="{{ faculty.department }}" readonly>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="faculty_phone" class="fw-bold">Phone</label>
+                                    <input type="text" class="form-control" id="faculty_phone" value="{{ faculty.faculty_phone }}" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-center">
+                                <h5 class="fw-bold">Current Signature</h5>
+                                <div class="signature-box border rounded p-3 bg-light">
+                                    {% if faculty.signature %}
+                                        <img src="{{ url_for('faculty.get_signature', faculty_id=faculty.faculty_id) }}" 
+                                             alt="Signature" class="img-fluid rounded shadow-sm">
+                                    {% else %}
+                                        <p class="text-muted">No signature uploaded.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
-                        <h6 class="fw-bold">{{ user.name }}</h6>
-                    </div>
-                </div>
+                        
+                        <hr class="my-4">
 
-                <!-- User Details -->
-                <div class="col-md-6">
-                    <div class="card p-4 shadow-sm h-100"> <!-- h-100 ensures same height -->
-                        <p><strong>Department:</strong> {{ faculty.department }}</p>
-                        <p><strong>Email:</strong> {{ user.email }}</p>
-                        <p><strong>Phone Number:</strong> {{ faculty.faculty_phone }}</p>
-                    </div>
-                </div>
+                        <!-- Upload Section -->
+                        <div class="form-group text-center">
+                            <label for="signature" class="fw-bold">Upload New Signature</label>
+                            <input type="file" class="form-control-file form-control mt-2" id="signature" name="signature">
+                        </div>
 
-            </div> 
+                        <!-- Submit Button -->
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-lg btn-success shadow-sm px-4">
+                                <i class="fas fa-upload"></i> Update Signature
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Add Some Custom Styling -->
+<style>
+    .signature-box {
+        min-height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
 {% endblock %}

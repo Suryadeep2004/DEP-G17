@@ -21,14 +21,42 @@ def profile():
 
     return render_template("caretaker/profile.html", user=user, caretaker=caretaker, hostel=hostel)
 
-@caretaker_bp.route("/caretaker/pending_approvals", methods=["GET"])
+@caretaker_bp.route("/caretaker/pending_approvals", methods=["GET", "POST"])
 def pending_approvals():
     if 'user_id' not in session or session.get('user_role') != 'caretaker':
         return redirect(url_for('auth.login'))
 
-    pending_applications = InternshipApplication.query.filter_by(status="Approved by Admin").all()
+    search_query = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'name')
+    sort_order = request.args.get('sort_order', 'asc')
 
-    return render_template("caretaker/pending_approvals.html", pending_applications=pending_applications)
+    query = InternshipApplication.query.filter_by(status="Approved by Admin")
+
+    if search_query:
+        query = query.filter(
+            InternshipApplication.name.ilike(f'%{search_query}%') |
+            InternshipApplication.email.ilike(f'%{search_query}%')
+        )
+
+    if sort_by == 'name':
+        if sort_order == 'asc':
+            query = query.order_by(InternshipApplication.name.asc())
+        else:
+            query = query.order_by(InternshipApplication.name.desc())
+    elif sort_by == 'email':
+        if sort_order == 'asc':
+            query = query.order_by(InternshipApplication.email.asc())
+        else:
+            query = query.order_by(InternshipApplication.email.desc())
+    elif sort_by == 'status':
+        if sort_order == 'asc':
+            query = query.order_by(InternshipApplication.status.asc())
+        else:
+            query = query.order_by(InternshipApplication.status.desc())
+
+    pending_applications = query.all()
+
+    return render_template("caretaker/pending_approvals.html", pending_applications=pending_applications, search_query=search_query, sort_by=sort_by, sort_order=sort_order)
 
 @caretaker_bp.route("/caretaker/approve_application/<int:application_id>", methods=["POST"])
 def approve_application(application_id):
