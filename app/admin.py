@@ -1,7 +1,11 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
 from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db
 import csv
 import io
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+import tempfile
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -215,3 +219,55 @@ def upload_csv():
         flash("Faculties added successfully.", "success")
 
     return redirect(url_for('admin.add_users'))
+
+@admin_bp.route("/admin/download_application_pdf/<int:application_id>", methods=["GET"])
+def download_application_pdf(application_id):
+    application = InternshipApplication.query.get(application_id)
+
+    if not application or application.status != "Approved by Caretaker":
+        flash("Application not found or not approved by caretaker.", "danger")
+        return redirect(url_for('admin.approved_applications'))
+
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    c.drawString(100, height - 100, f"Internship Application Approval")
+    c.drawString(100, height - 120, f"Name: {application.name}")
+    c.drawString(100, height - 140, f"Gender: {application.gender}")
+    c.drawString(100, height - 160, f"Affiliation: {application.affiliation}")
+    c.drawString(100, height - 180, f"Address: {application.address}")
+    c.drawString(100, height - 200, f"Contact Number: {application.contact_number}")
+    c.drawString(100, height - 220, f"Email: {application.email}")
+    c.drawString(100, height - 240, f"Faculty Mentor: {application.faculty_mentor}")
+    c.drawString(100, height - 260, f"Faculty Email: {application.faculty_email}")
+    c.drawString(100, height - 280, f"Arrival Date: {application.arrival_date}")
+    c.drawString(100, height - 300, f"Departure Date: {application.departure_date}")
+    c.drawString(100, height - 320, f"Remarks: {application.remarks}")
+
+    c.drawString(100, height - 360, f"Signatures:")
+
+    def draw_signature(signature_data, x, y, label):
+        if signature_data:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+                tmpfile.write(signature_data)
+                tmpfile.flush()
+                c.drawImage(tmpfile.name, x, y, width=100, height=50)
+            c.drawString(x, y - 20, label)
+
+    faculty = Faculty.query.get(application.faculty_signature_id)
+    if faculty and faculty.signature:
+        draw_signature(faculty.signature, 100, height - 400, "Faculty Signature")
+
+    hod = Faculty.query.get(application.hod_signature_id)
+    if hod and hod.signature:
+        draw_signature(hod.signature, 100, height - 480, "HOD Signature")
+
+    admin = Admin.query.get(application.admin_signature_id)
+    if admin and admin.signature:
+        draw_signature(admin.signature, 100, height - 560, "Admin Signature")
+
+    c.save()
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name=f'internship_approval_{application.id}.pdf', mimetype='application/pdf')

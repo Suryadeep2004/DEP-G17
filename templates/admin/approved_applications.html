@@ -57,6 +57,7 @@
                                     <th>Status</th>
                                     <th>ID Card</th>
                                     <th>Official Letter</th>
+                                    <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -73,10 +74,15 @@
                                         <td>
                                             <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Official Letter</a>
                                         </td>
+                                        <td class="text-center">
+                                            <a href="{{ url_for('admin.download_application_pdf', application_id=application.id) }}" class="btn btn-primary btn-sm">
+                                                <i class="fas fa-download"></i> Download PDF
+                                            </a>
+                                        </td>
                                     </tr>
                                 {% else %}
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted">No approved applications found.</td>
+                                        <td colspan="6" class="text-center text-muted">No approved applications found.</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
