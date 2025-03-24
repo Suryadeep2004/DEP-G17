@@ -67,17 +67,17 @@
                             <td>{{ application.departure_date }}</td>
                             <td>{{ application.status }}</td>
                             <td>
-                                <a href="{{ url_for('student.uploaded_file', filename=application.id_card) }}" target="_blank">ID Card</a>
+                                <a href="{{ url_for('student.uploaded_file', filename=application.id_card) }}" target="_blank">ID</a>
                             </td>
                             <td>
-                                <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Official Letter</a>
+                                <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Letter</a>
                             </td>
                             <td>
                                 <form method="POST" action="{{ url_for('caretaker.approve_application', application_id=application.id) }}">
                                     <input type="text" name="room_no" class="form-control" placeholder="Enter Room No" required>
                             </td>
                             <td class="text-center">
-                                    <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                    <button type="submit" class="btn btn-success btn-sm">✔</button>
                                 </form>
                             </td>
                         </tr>

@@ -116,3 +116,42 @@ class InternshipApplication(db.Model):
     hod_signature_id = db.Column(db.Integer, db.ForeignKey('faculty.faculty_id'))  
     admin_signature_id = db.Column(db.Integer, db.ForeignKey('admin.admin_id'))  
     approval_date = db.Column(db.DateTime, default=db.func.current_timestamp()) 
+
+class DummyBatch(db.Model):
+    __tablename__ = 'dummy_batch'
+    id = db.Column(db.Integer, primary_key=True)
+    batch_no = db.Column(db.String(20), unique=True, nullable=False)
+    number_of_students = db.Column(db.Integer, nullable=False)
+    number_of_boys = db.Column(db.Integer, nullable=False)
+    number_of_girls = db.Column(db.Integer, nullable=False)
+
+class DummyHostel(db.Model):
+    __tablename__ = 'dummy_hostel'
+    id = db.Column(db.Integer, primary_key=True)
+    hostel_no = db.Column(db.String(20), unique=True, nullable=False)
+    hostel_name = db.Column(db.String(100), nullable=False)
+    hostel_type = db.Column(db.String(50), nullable=False)  # 'Boys' or 'Girls'
+    capacity = db.Column(db.Integer, nullable=False)
+
+class DummyAllocation(db.Model):
+    __tablename__ = 'dummy_allocation'
+    id = db.Column(db.Integer, primary_key=True)
+    batch_id = db.Column(db.Integer, db.ForeignKey('dummy_batch.id'), nullable=False)
+    hostel_id = db.Column(db.Integer, db.ForeignKey('dummy_hostel.id'), nullable=False)
+    number_of_students = db.Column(db.Integer, nullable=False)
+
+    batch = db.relationship('DummyBatch', backref=db.backref('allocations', cascade='all, delete-orphan'))
+    hostel = db.relationship('DummyHostel', backref=db.backref('allocations', cascade='all, delete-orphan'))
+
+class RoomChangeRequest(db.Model):
+    __tablename__ = 'room_change_request'
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id', ondelete='CASCADE'), nullable=False)
+    reason = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(50), default="Pending", nullable=False)
+    new_room_no = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    student = db.relationship('Student', backref=db.backref('room_change_requests', cascade='all, delete-orphan'))

@@ -118,22 +118,3 @@ with app.app_context():
     ]
     db.session.bulk_save_objects(batches)
     db.session.commit()
-
-    # applications = [
-    #     InternshipApplication(
-    #         id=1, name='Ashutosh Singh', gender='Male', affiliation='XYZ University', address='123 Street, City', 
-    #         contact_number='9876543210', email='2022csb1132+student@iitrpr.ac.in', faculty_mentor='Dr. Rajesh Kumar', 
-    #         faculty_email='2022csb1132+hod@iitrpr.ac.in', arrival_date=datetime.strptime('2025-03-01', '%Y-%m-%d').date(), 
-    #         departure_date=datetime.strptime('2025-06-01', '%Y-%m-%d').date(), id_card='Ashutosh_Singh_Internship_Certificate.png', 
-    #         official_letter='letter.pdf', remarks='Waiting for approval', status='Pending Faculty Approval', 
-    #         faculty_signature_id=2, hod_signature_id=2, admin_signature_id=4
-    #     )
-    # ]
-    # db.session.bulk_save_objects(applications)
-    # db.session.commit()
-
-    # caretaker_histories = [
-    #     CaretakerHistory(caretaker_id=1, hostel_no='SU', start_date=datetime.strptime('2023-01-01', '%Y-%m-%d'), end_date=None)
-    # ]
-    # db.session.bulk_save_objects(caretaker_histories)
-    # db.session.commit()

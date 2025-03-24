@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file, send_from_directory
-from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db
+from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest
 from werkzeug.utils import secure_filename
 from flask_mail import Message
 from app import mail  
@@ -9,6 +9,11 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import tempfile
+
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.units import inch
 
 student_bp = Blueprint("student", __name__)
 
@@ -180,43 +185,269 @@ def download_application_pdf():
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
+    
+    # Document margins
+    margin = 50
+    content_width = width - (2 * margin)
+    
+    # Background for header - using valid color definition
+    c.setFillColorRGB(0.95, 0.95, 0.98)  # Light gray with slight blue tint
+    c.rect(margin, height - 110, content_width, 60, fill=True, stroke=False)
+    
+    # Title Styling
+    c.setFont("Helvetica-Bold", 22)
+    c.setFillColor(colors.darkblue)
+    c.drawCentredString(width / 2, height - 70, "Internship Application Approval")
 
-    c.drawString(100, height - 100, f"Internship Application Approval")
-    c.drawString(100, height - 120, f"Name: {application.name}")
-    c.drawString(100, height - 140, f"Gender: {application.gender}")
-    c.drawString(100, height - 160, f"Affiliation: {application.affiliation}")
-    c.drawString(100, height - 180, f"Address: {application.address}")
-    c.drawString(100, height - 200, f"Contact Number: {application.contact_number}")
-    c.drawString(100, height - 220, f"Email: {application.email}")
-    c.drawString(100, height - 240, f"Faculty Mentor: {application.faculty_mentor}")
-    c.drawString(100, height - 260, f"Faculty Email: {application.faculty_email}")
-    c.drawString(100, height - 280, f"Arrival Date: {application.arrival_date}")
-    c.drawString(100, height - 300, f"Departure Date: {application.departure_date}")
-    c.drawString(100, height - 320, f"Remarks: {application.remarks}")
+    # Underline Title - thicker and more prominent
+    c.setStrokeColor(colors.darkblue)
+    c.setLineWidth(2)
+    c.line(margin, height - 85, width - margin, height - 85)
+    
+    # Define structured layout with better spacing
+    left_x = margin + 20  # Reduced left margin to give more space
+    right_x = width / 2 + 20  # Adjusted right column starting point
+    y_position = height - 140
+    field_spacing = 35  # Space between fields
+    
+    # Adjusted spacing to accommodate longer emails
+    left_label_width = 120
+    right_label_width = 120
+    
+    # Add section title for personal details
+    c.setFillColor(colors.darkblue)
+    c.setFont("Helvetica-Bold", 14)
+    # c.drawString(margin, y_position, "Application Details")
+    y_position -= 25
+    
+    # Calculate required height for details section based on number of rows
+    num_rows = 6  # Number of rows in details
+    details_section_height = (num_rows * field_spacing) + 30  # Extra padding
+    
+    # Draw a border around the details section with rounded corners
+    c.setStrokeColor(colors.gray)
+    c.setLineWidth(1)
+    c.roundRect(margin, y_position - details_section_height + 5, content_width, details_section_height, 10, stroke=False, fill=False)
+    
+    # Application Details (Left & Right Column)
+    details = [
+        ("Name:", application.name, "Faculty Mentor:", application.faculty_mentor),
+        ("Gender:", application.gender, "Faculty Email:", application.faculty_email),
+        ("Affiliation:", application.affiliation, "Arrival Date:", application.arrival_date),
+        ("Address:", application.address, "Departure Date:", application.departure_date),
+        ("Contact Number:", application.contact_number, "Remarks:", application.remarks if application.remarks else "N/A"),
+        ("Email:", application.email, "", "")
+    ]
 
-    c.drawString(100, height - 360, f"Signatures:")
+    for left_label, left_value, right_label, right_value in details:
+        # Label background for left column
+        c.setFillColorRGB(0.92, 0.92, 0.95)
+        c.rect(left_x - 5, y_position - 5, left_label_width, 25, fill=True, stroke=False)
+        
+        # Label and value for left column
+        c.setFillColor(colors.darkblue)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(left_x, y_position, left_label)
+        
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica", 10)  # Slightly smaller font for values
+        # Position the value with enough space after the label
+        c.drawString(left_x + left_label_width + 10, y_position, str(left_value))
 
-    def draw_signature(signature_data, x, y, label):
-        if signature_data:
+        # Only add right column if there's content
+        if right_label:
+            # Label background for right column
+            c.setFillColorRGB(0.92, 0.92, 0.95)
+            c.rect(right_x - 5, y_position - 5, right_label_width, 25, fill=True, stroke=False)
+            
+            # Label and value for right column
+            c.setFillColor(colors.darkblue)
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(right_x, y_position, right_label)
+            
+            c.setFillColor(colors.black)
+            c.setFont("Helvetica", 10)  # Slightly smaller font for values
+            
+            # Check if we're handling faculty email to prevent overflow
+            if right_label == "Faculty Email:":
+                # Use smaller font for email addresses
+                c.setFont("Helvetica", 9)
+            
+            # Position the value with enough space after the label
+            c.drawString(right_x + right_label_width + 10, y_position, str(right_value))
+
+        y_position -= field_spacing
+
+    # Recalculate y_position for signature section
+    y_position = height - 140 - details_section_height - 20
+    
+    # Section header for signatures
+    c.setFillColor(colors.darkblue)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(margin, y_position, "Signatures")
+    y_position -= 25
+    
+    # Draw a border around signature section
+    signature_section_height = 110
+    c.setStrokeColor(colors.gray)
+    c.roundRect(margin, y_position - signature_section_height + 10, content_width, signature_section_height, 10, stroke=True, fill=False)
+
+    # Signature boxes - better aligned
+    signature_width = content_width / 3
+    signature_box_height = 70
+    signature_boxes = [
+        (margin + signature_width * 0 + 10, "Faculty Signature"),
+        (margin + signature_width * 1 + 10, "HOD Signature"),
+        (margin + signature_width * 2 + 10, "Admin Signature")
+    ]
+    
+    signature_data = [
+        Faculty.query.get(application.faculty_signature_id),
+        Faculty.query.get(application.hod_signature_id),
+        Admin.query.get(application.admin_signature_id)
+    ]
+
+    # Draw signature boxes and place signatures
+    for i, ((box_x, label), signature) in enumerate(zip(signature_boxes, signature_data)):
+        # Signature box
+        c.setStrokeColor(colors.gray)
+        c.roundRect(box_x, y_position - 80, signature_width - 20, signature_box_height, 5, stroke=True, fill=False)
+        
+        # Place signature image
+        if signature and signature.signature:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                tmpfile.write(signature_data)
+                tmpfile.write(signature.signature)
                 tmpfile.flush()
-                c.drawImage(tmpfile.name, x, y, width=100, height=50)
-            c.drawString(x, y - 20, label)
+                # Center signature in box
+                c.drawImage(tmpfile.name, 
+                           box_x + 10, 
+                           y_position - 70, 
+                           width=signature_width - 40, 
+                           height=50)
+                os.unlink(tmpfile.name)
+        
+        # Signature label
+        c.setFillColor(colors.darkblue)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawCentredString(box_x + (signature_width - 20) / 2, y_position - 90, label)
 
-    faculty = Faculty.query.get(application.faculty_signature_id)
-    if faculty and faculty.signature:
-        draw_signature(faculty.signature, 100, height - 400, "Faculty Signature")
-
-    hod = Faculty.query.get(application.hod_signature_id)
-    if hod and hod.signature:
-        draw_signature(hod.signature, 100, height - 480, "HOD Signature")
-
-    admin = Admin.query.get(application.admin_signature_id)
-    if admin and admin.signature:
-        draw_signature(admin.signature, 100, height - 560, "Admin Signature")
+    # Footer with gradient background
+    footer_y = 40
+    c.setFillColorRGB(0.95, 0.95, 0.98)
+    c.rect(margin, footer_y - 20, content_width, 30, fill=True, stroke=False)
+    
+    # Footer text
+    c.setFont("Helvetica-Oblique", 9)
+    c.setFillColor(colors.gray)
+    c.drawString(margin + 10, footer_y, "Generated by Hostel Management System")
+    c.drawRightString(width - margin - 10, footer_y, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    # Document ID and page number
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(width / 2, footer_y, f"Application ID: {application.id} | Page 1 of 1")
 
     c.save()
     buffer.seek(0)
 
     return send_file(buffer, as_attachment=True, download_name=f'internship_approval_{application.id}.pdf', mimetype='application/pdf')
+
+@student_bp.route("/student/complaint", methods=["GET"])
+def complaint():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    return render_template("student/complaint.html")
+
+@student_bp.route("/student/submit_complaint", methods=["POST"])
+def submit_complaint():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    student = Student.query.filter_by(student_id=user_id).first()
+
+    if student is None:
+        return redirect(url_for('auth.login'))
+
+    complaint_type = request.form.get('complaint_type')
+    description = request.form.get('description')
+
+    # Get the caretaker handling the hostel where the student resides
+    room = Room.query.filter_by(room_no=student.student_room_no).first()
+    if room is None:
+        flash("Room not found.", "danger")
+        return redirect(url_for('student.complaint'))
+
+    caretaker = Caretaker.query.filter_by(hostel_no=room.hostel_no).first()
+    if caretaker is None:
+        flash("Caretaker not found.", "danger")
+        return redirect(url_for('student.complaint'))
+
+    caretaker_user = CustomUser.query.get(caretaker.user_id)
+
+    # Send email to the caretaker
+    msg = Message(
+        "New Complaint from Student",
+        sender="your-email@example.com",  # Replace with your email
+        recipients=[caretaker_user.email]
+    )
+    msg.body = f"Complaint Type: {complaint_type}\nDescription: {description}\nStudent: {student.user.name}\nRoom No: {student.student_room_no}\nHostel: {room.hostel_no}"
+    mail.send(msg)
+
+    flash("Your complaint has been submitted successfully.", "success")
+    return redirect(url_for('student.complaint'))
+
+@student_bp.route("/student/room_change", methods=["GET"])
+def room_change():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    return render_template("student/room_change.html")
+
+@student_bp.route("/student/submit_room_change", methods=["POST"])
+def submit_room_change():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    student = Student.query.filter_by(student_id=user_id).first()
+
+    if student is None:
+        return redirect(url_for('auth.login'))
+
+    reason = request.form.get('reason')
+    description = request.form.get('description')
+
+    # Create a new room change request
+    room_change_request = RoomChangeRequest(
+        student_id=student.student_id,
+        reason=reason,
+        description=description
+    )
+    db.session.add(room_change_request)
+    db.session.commit()
+
+    # Get the caretaker handling the hostel where the student resides
+    room = Room.query.filter_by(room_no=student.student_room_no).first()
+    if room is None:
+        flash("Room not found.", "danger")
+        return redirect(url_for('student.room_change'))
+
+    caretaker = Caretaker.query.filter_by(hostel_no=room.hostel_no).first()
+    if caretaker is None:
+        flash("Caretaker not found.", "danger")
+        return redirect(url_for('student.room_change'))
+
+    caretaker_user = CustomUser.query.get(caretaker.user_id)
+
+    # Send email to the caretaker
+    msg = Message(
+        "New Room Change Request from Student",
+        sender="your-email@example.com",  # Replace with your email
+        recipients=[caretaker_user.email]
+    )
+    msg.body = f"Reason: {reason}\nDescription: {description}\nStudent: {student.user.name}\nRoom No: {student.student_room_no}\nHostel: {room.hostel_no}"
+    mail.send(msg)
+
+    flash("Your room change request has been submitted successfully.", "success")
+    return redirect(url_for('student.room_change'))

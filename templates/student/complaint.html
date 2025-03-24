@@ -1,0 +1,23 @@
+{% extends "student/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Complaint Section</h2>
+    <form method="POST" action="{{ url_for('student.submit_complaint') }}">
+        <div class="mb-3">
+            <label for="complaint_type" class="form-label">Complaint Type</label>
+            <select class="form-control" id="complaint_type" name="complaint_type" required>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Cleanliness">Cleanliness</option>
+                <option value="Noise">Noise</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Complaint</button>
+    </form>
+</div>
+{% endblock %}

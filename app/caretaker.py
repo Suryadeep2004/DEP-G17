@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash
-from app.models import CustomUser, Caretaker, InternshipApplication, Room, Hostel, db
+from app.models import Student, CustomUser, Caretaker, InternshipApplication, Room, Hostel, db, RoomChangeRequest
 from flask_mail import Message
 from app import mail
 
@@ -125,3 +125,74 @@ def vacant_rooms():
     vacant_rooms = Room.query.filter(Room.hostel_no == caretaker.hostel_no, Room.current_occupancy < Room.room_occupancy).all()
 
     return render_template("caretaker/vacant_rooms.html", vacant_rooms=vacant_rooms)
+
+@caretaker_bp.route("/caretaker/room_change_requests", methods=["GET"])
+def room_change_requests():
+    if 'user_id' not in session or session.get('user_role') != 'caretaker':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    caretaker = Caretaker.query.filter_by(user_id=user_id).first()
+
+    if caretaker is None:
+        return redirect(url_for('auth.login'))
+
+    room_change_requests = RoomChangeRequest.query \
+        .join(Student, RoomChangeRequest.student_id == Student.student_id) \
+        .join(Room, Room.room_no == Student.student_room_no) \
+        .filter(Room.hostel_no == caretaker.hostel_no) \
+        .all()
+
+    return render_template("caretaker/room_change_requests.html", room_change_requests=room_change_requests)
+
+@caretaker_bp.route("/caretaker/handle_room_change/<int:request_id>", methods=["POST"])
+def handle_room_change(request_id):
+    if 'user_id' not in session or session.get('user_role') != 'caretaker':
+        return redirect(url_for('auth.login'))
+
+    action = request.form.get('action')
+    new_room_no = request.form.get('new_room_no')
+    swap_student_email = request.form.get('swap_student_email')
+
+    room_change_request = RoomChangeRequest.query.get(request_id)
+
+    if room_change_request:
+        student = Student.query.get(room_change_request.student_id)
+        current_room = Room.query.filter_by(room_no=student.student_room_no).first()
+
+        if action == 'approve':
+            new_room = Room.query.filter_by(room_no=new_room_no).first()
+            if new_room and new_room.current_occupancy < new_room.room_occupancy:
+                # Vacate the current room
+                current_room.current_occupancy -= 1
+                # Allocate the new room
+                new_room.current_occupancy += 1
+                student.student_room_no = new_room_no
+                room_change_request.status = "Approved"
+                room_change_request.new_room_no = new_room_no
+                db.session.delete(room_change_request)
+                db.session.commit()
+                flash("Room change approved and new room allocated.", "success")
+            else:
+                flash("New room is not available.", "danger")
+        elif action == 'reject':
+            room_change_request.status = "Rejected"
+            db.session.delete(room_change_request)
+            db.session.commit()
+            flash("Room change request rejected.", "danger")
+        elif action == 'swap':
+            swap_student = Student.query.join(CustomUser).filter(CustomUser.email == swap_student_email).first()
+            if swap_student:
+                # Swap the room numbers
+                student.student_room_no, swap_student.student_room_no = swap_student.student_room_no, student.student_room_no
+                room_change_request.status = "Approved"
+                room_change_request.new_room_no = swap_student.student_room_no
+                db.session.delete(room_change_request)
+                db.session.commit()
+                flash("Room change approved and rooms swapped.", "success")
+            else:
+                flash("Swap student not found.", "danger")
+    else:
+        flash("Room change request not found.", "danger")
+
+    return redirect(url_for('caretaker.room_change_requests'))

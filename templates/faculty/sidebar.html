@@ -73,6 +73,14 @@
         <img src="{{ url_for('static', filename='icons/hod_pending_approvals_icon.png') }}" alt="HOD Pending Approvals Icon">HOD Pending Approvals
     </a>
     {% endif %}
+    {% if session.get('user_role') == 'faculty' and session.get('is_chief_warden') %}
+    <a href="/faculty/batch_allocation">
+        <img src="{{ url_for('static', filename='icons/batch_allocation_icon.png') }}" alt="Batch Allocation Icon">Batch Allocation
+    </a>
+    <a href="/faculty/allocate_batch_sandbox">
+        <img src="{{ url_for('static', filename='icons/sandbox_icon.png') }}" alt="Sandbox Icon">Allocate Batch in Sandbox
+    </a>
+    {% endif %}
     <a href="/logout">
         <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="Logout Icon">Logout
     </a>

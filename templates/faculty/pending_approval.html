@@ -69,18 +69,18 @@
                                             <span class="badge bg-info text-white">{{ application.status }}</span>
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('student.uploaded_file', filename=application.id_card) }}" target="_blank">ID Card</a>
+                                            <a href="{{ url_for('student.uploaded_file', filename=application.id_card) }}" target="_blank">ID</a>
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Official Letter</a>
+                                            <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Letter</a>
                                         </td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('faculty.approve_application', application_id=application.id) }}">
-                                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm me-1">
-                                                    <i class="fas fa-check"></i> Approve
+                                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm me-1" title="Approve">
+                                                    ✔
                                                 </button>
-                                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">
-                                                    <i class="fas fa-times"></i> Reject
+                                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm" title="Reject">
+                                                    ✕
                                                 </button>
                                             </form>
                                         </td>

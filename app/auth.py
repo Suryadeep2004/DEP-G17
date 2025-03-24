@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from app.models import CustomUser, Student, Caretaker, Faculty, Admin
+from app.models import CustomUser, Student, Caretaker, Faculty, Admin, Warden
 from app.database import db
 from flask_mail import Message
 from app import mail
@@ -47,6 +47,8 @@ def login():
                 faculty = Faculty.query.filter_by(faculty_id=user.id).first()
                 session['user_role'] = 'faculty'
                 session['is_hod'] = faculty.is_hod
+                warden = Warden.query.filter_by(faculty_id=user.id).first()
+                session['is_chief_warden'] = warden.is_chief if warden else False
                 return redirect(url_for("faculty.profile"))
             elif Admin.query.filter_by(admin_id=user.id).first():
                 session['user_role'] = 'admin'
@@ -130,5 +132,6 @@ def logout():
     session.pop('user_id', None)
     session.pop('user_role', None)
     session.pop('is_hod', None)
+    session.pop('is_chief_warden', None)
     flash("You have been logged out.", "success")
     return redirect(url_for("auth.login"))

@@ -1,0 +1,18 @@
+{% extends "student/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Room Change Request</h2>
+    <form method="POST" action="{{ url_for('student.submit_room_change') }}">
+        <div class="mb-3">
+            <label for="reason" class="form-label">Reason for Room Change</label>
+            <input type="text" class="form-control" id="reason" name="reason" required>
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Request</button>
+    </form>
+</div>
+{% endblock %}

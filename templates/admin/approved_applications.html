@@ -57,7 +57,7 @@
                                     <th>Status</th>
                                     <th>ID Card</th>
                                     <th>Official Letter</th>
-                                    <th class="text-center">Actions</th>
+                                    <th class="text-center">Approved PDF</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -69,14 +69,14 @@
                                             <span class="badge bg-info text-white">{{ application.status }}</span>
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('student.uploaded_file', filename=application.id_card) }}" target="_blank">ID Card</a>
+                                            <a href="{{ url_for('student.uploaded_file', filename=application.id_card) }}" target="_blank">ID</a>
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Official Letter</a>
+                                            <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Letter</a>
                                         </td>
                                         <td class="text-center">
-                                            <a href="{{ url_for('admin.download_application_pdf', application_id=application.id) }}" class="btn btn-primary btn-sm">
-                                                <i class="fas fa-download"></i> Download PDF
+                                            <a href="{{ url_for('admin.download_application_pdf', application_id=application.id) }}" class="btn-sm">
+                                                <img src="{{ url_for('static', filename='downBTN2.png') }}" alt="Download PDF" style="width: 20px; height: 20px;">
                                             </a>
                                         </td>
                                     </tr>

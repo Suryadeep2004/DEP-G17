@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash
-from app.models import CustomUser, Faculty, InternshipApplication, db
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify
+from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication
+from app.database import db
 from flask_mail import Message
 from app import mail  
 
@@ -98,8 +99,8 @@ def approve_application(application_id):
             application.faculty_signature_id = faculty.faculty_id
             db.session.commit()
 
-            # Send email to HOD
-            hod_email = "2022csb1071+hod@iitrpr.ac.in"  # Replace with actual HOD email
+            hod = Faculty.query.filter_by(is_hod=True).first()
+            hod_email = hod.user.email
             hod_msg = Message(
                 "New Internship Application for HOD Approval",
                 sender="johnDoe18262117@gmail.com",
@@ -214,3 +215,94 @@ def hod_approve_application(application_id):
         flash("Application not found.", "danger")
 
     return redirect(url_for('faculty.hod_pending_approvals'))
+
+@faculty_bp.route("/faculty/batch_allocation", methods=["GET"])
+def batch_allocation():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+    warden = Warden.query.filter_by(faculty_id=user_id).first()
+
+    if faculty is None or warden is None or not warden.is_chief:
+        return redirect(url_for('auth.login'))
+
+    batches = DummyBatch.query.all()
+    hostels = DummyHostel.query.all()
+
+    allocation_data = {}
+    for batch in batches:
+        allocation_data[batch.batch_no] = {}
+        for hostel in hostels:
+            allocation = DummyAllocation.query.filter_by(batch_id=batch.id, hostel_id=hostel.id).first()
+            allocation_data[batch.batch_no][hostel.hostel_no] = allocation.number_of_students if allocation else 0
+
+    return render_template("faculty/batch_allocation.html", batches=batches, hostels=hostels, allocation_data=allocation_data)
+
+@faculty_bp.route("/faculty/allocate_batch_sandbox", methods=["GET"])
+def allocate_batch_sandbox():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+    warden = Warden.query.filter_by(faculty_id=user_id).first()
+
+    if faculty is None or warden is None or not warden.is_chief:
+        return redirect(url_for('auth.login'))
+
+    batches = DummyBatch.query.all()
+    hostels = DummyHostel.query.all()
+
+    # Calculate unallocated students for each batch
+    for batch in batches:
+        allocated_students = db.session.query(db.func.sum(DummyAllocation.number_of_students)).filter_by(batch_id=batch.id).scalar() or 0
+        batch.unallocated_students = batch.number_of_students - allocated_students
+
+    # Calculate vacant capacity for each hostel
+    for hostel in hostels:
+        allocated_students = db.session.query(db.func.sum(DummyAllocation.number_of_students)).filter_by(hostel_id=hostel.id).scalar() or 0
+        hostel.vacant_capacity = hostel.capacity - allocated_students
+
+    return render_template("faculty/allocate_batch_sandbox.html", batches=batches, hostels=hostels)
+    
+@faculty_bp.route("/faculty/save_batch_allocation", methods=["POST"])
+def save_batch_allocation():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    data = request.json
+    allocations = data.get("allocations", [])
+
+    for alloc in allocations:
+        batch_id = alloc["batchId"]
+        hostel_id = alloc["hostelId"]
+        num_students = alloc["numStudents"]
+
+        batch = DummyBatch.query.get(batch_id)
+        hostel = DummyHostel.query.get(hostel_id)
+
+        if not batch or not hostel:
+            return jsonify({"error": "Invalid batch or hostel"}), 400
+
+        # Constraint: Ensure enough vacancies in hostel
+        total_allocated = db.session.query(db.func.sum(DummyAllocation.number_of_students)) \
+            .filter_by(hostel_id=hostel_id).scalar() or 0
+
+        if total_allocated + num_students > hostel.capacity:
+            return jsonify({"error": "Not enough vacancies"}), 400
+
+        # Constraint: Ensure batch has enough unallocated students
+        existing_alloc = db.session.query(db.func.sum(DummyAllocation.number_of_students)) \
+            .filter_by(batch_id=batch_id).scalar() or 0
+
+        if existing_alloc + num_students > batch.number_of_students:
+            return jsonify({"error": "Not enough students left in batch"}), 400
+
+        # Save Allocation
+        allocation = DummyAllocation(batch_id=batch_id, hostel_id=hostel_id, number_of_students=num_students)
+        db.session.add(allocation)
+
+    db.session.commit()
+    return jsonify({"message": "Batch allocations saved successfully!"})
