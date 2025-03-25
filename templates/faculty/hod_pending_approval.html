@@ -1,6 +1,18 @@
 {% extends "faculty/base.html" %}
 
 {% block content %}
+<style>
+    .preview-icon {
+        transition: background 0.3s ease, transform 0.2s ease; /* Smooth transition for hover effects */
+        padding: 5px; /* Add padding to make it look like a button */
+        border-radius: 50%; /* Make the background circular */
+    }
+
+    .preview-icon:hover {
+        background: radial-gradient(circle, rgb(211, 207, 207) 50%, white 100%); /* Black center, white circumference */
+        background-color: #afc7e0; /* Change color to Bootstrap's primary blue */
+    }
+</style>
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-10">
@@ -57,6 +69,7 @@
                                     <th>Status</th>
                                     <th>ID Card</th>
                                     <th>Official Letter</th>
+                                    <th>Preview</th> <!-- Added Preview Column -->
                                     <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -74,6 +87,14 @@
                                         <td>
                                             <a href="{{ url_for('student.uploaded_file', filename=application.official_letter) }}" target="_blank">Letter</a>
                                         </td>
+                                        <td class="text-center"> <!-- Added Preview Section -->
+                                            <a href="{{ url_for('faculty.hod_preview_application', application_id=application.id) }}" 
+                                            class="text-dark fs-4 text-decoration-none preview-icon" 
+                                            title="Preview" 
+                                            target="_blank">
+                                                👁
+                                            </a>
+                                        </td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('faculty.hod_approve_application', application_id=application.id) }}">
                                                 <button type="submit" name="action" value="approve" class="btn btn-success btn-sm me-1" title="Approve">
@@ -87,7 +108,7 @@
                                     </tr>
                                 {% else %}
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted">No pending approvals found.</td>
+                                        <td colspan="7" class="text-center text-muted">No pending approvals found.</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>

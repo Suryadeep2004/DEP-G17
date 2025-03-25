@@ -1,6 +1,6 @@
 <style>
     .sidebar {
-        width: 260px;
+        width: 370px;
         background-color: #2b5586; 
         color: #ecf0f1;  
         position: fixed;
@@ -11,6 +11,12 @@
         padding: 0; 
         box-shadow: 4px 0 8px rgba(0, 0, 0, 0.2);
         font-family: 'Arial', sans-serif;
+        overflow: hidden;
+        transition: width 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
     }
 
     .sidebar h3 {
@@ -25,6 +31,8 @@
         letter-spacing: 1px;
         width: 100%; 
         box-sizing: border-box; 
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     .sidebar a {
@@ -40,6 +48,8 @@
         align-items: center; 
         gap: 10px; 
         box-sizing: border-box;
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     .sidebar a:hover {
@@ -58,26 +68,73 @@
         height: 20px; 
         object-fit: contain; 
     }
+
+    .toggle-btn {
+        background-color: #0f2a45;
+        color: white;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: background 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #1e3a5f;
+    }
+
+    /* Hide text and header when collapsed */
+    .sidebar.collapsed a span,
+    .sidebar.collapsed h3 {
+        display: none;
+    }
+
+    .sidebar a span {
+        flex-grow: 1;
+    }
+
+    .main-content.collapsed {
+        margin-left: 70px; /* Adjust main content margin when sidebar is collapsed */
+    }
 </style>
 
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
     <h3>Caretaker Dashboard</h3>
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <a href="/caretaker">
-        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="Profile Icon">Manage Profile
+        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="">
+        <span>Manage Profile</span>
     </a>
     <a href="/caretaker/pending_approvals">
-        <img src="{{ url_for('static', filename='icons/pending_approvals_icon.png') }}" alt="Pending Approvals Icon">Pending Approvals
+        <img src="{{ url_for('static', filename='icons/pending_approvals_icon.png') }}" alt="">
+        <span>Pending Approvals</span>
     </a>
     <a href="/caretaker/rooms">
-        <img src="{{ url_for('static', filename='icons/rooms_icon.png') }}" alt="Rooms Icon">All Rooms
+        <img src="{{ url_for('static', filename='icons/rooms_icon.png') }}" alt="">
+        <span>All Rooms</span>
     </a>
     <a href="/caretaker/vacant_rooms">
-        <img src="{{ url_for('static', filename='icons/vacant_rooms_icon.png') }}" alt="Vacant Rooms Icon">Vacant Rooms
+        <img src="{{ url_for('static', filename='icons/vacant_rooms_icon.png') }}" alt="">
+        <span>Vacant Rooms</span>
     </a>
     <a href="{{ url_for('caretaker.room_change_requests') }}">
-        <img src="{{ url_for('static', filename='icons/room_change_icon.png') }}" alt="Room Change Icon">Room Change Requests
+        <img src="{{ url_for('static', filename='icons/room_change_icon.png') }}" alt="">
+        <span>Room Change Requests</span>
     </a>
     <a href="/logout">
-        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="Logout Icon">Logout
+        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="">
+        <span>Logout</span>
     </a>
 </div>
+
+<script>
+    function toggleSidebar() {
+        var sidebar = document.getElementById('sidebar');
+        var mainContent = document.querySelector('.main-content');
+        sidebar.classList.toggle('collapsed');
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed');
+        }
+    }
+</script>

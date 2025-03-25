@@ -1,6 +1,6 @@
 <style>
     .sidebar {
-        width: 260px;
+        width: 400px;
         background-color: #5a4e1e; 
         color: #fdfdfd;
         position: fixed;
@@ -11,6 +11,12 @@
         padding: 0;
         box-shadow: 4px 0 8px rgba(0, 0, 0, 0.2);
         font-family: 'Arial', sans-serif;
+        overflow: hidden;
+        transition: width 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
     }
 
     .sidebar h3 {
@@ -25,6 +31,8 @@
         letter-spacing: 1px;
         width: 100%;
         box-sizing: border-box; 
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     .sidebar a {
@@ -40,6 +48,8 @@
         align-items: center;
         gap: 10px; 
         box-sizing: border-box;
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     .sidebar a:hover {
@@ -58,23 +68,69 @@
         height: 20px; 
         object-fit: contain; 
     }
+
+    .toggle-btn {
+        background-color: #3f3312;
+        color: white;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: background 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #4a3b14;
+    }
+
+    /* Hide text and header when collapsed */
+    .sidebar.collapsed a span,
+    .sidebar.collapsed h3 {
+        display: none;
+    }
+
+    .sidebar a span {
+        flex-grow: 1;
+    }
+
+    .main-content.collapsed {
+        margin-left: 70px; /* Adjust main content margin when sidebar is collapsed */
+    }
 </style>
 
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
     <h3>Hostel Admin Dashboard</h3>
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <a href="/admin">
-        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="Profile Icon">Manage Profile
+        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="">
+        <span>Manage Profile</span>
     </a>
     <a href="/admin/pending_internship_applications">
-        <img src="{{ url_for('static', filename='icons/pending_approvals_icon.png') }}" alt="Pending Approvals Icon">Pending Internship Applications
+        <img src="{{ url_for('static', filename='icons/pending_approvals_icon.png') }}" alt="">
+        <span>Pending Internship Applications</span>
     </a>
     <a href="{{ url_for('admin.approved_applications') }}">
-        <img src="{{ url_for('static', filename='icons/approved_icon.png') }}" alt="Approved Icon">Approved Applications
+        <img src="{{ url_for('static', filename='icons/approved_icon.png') }}" alt="">
+        <span>Approved Applications</span>
     </a>
     <a href="{{ url_for('admin.add_users') }}">
-        <img src="{{ url_for('static', filename='icons/add_users_icon.png') }}" alt="Add Users Icon">Add Users
+        <img src="{{ url_for('static', filename='icons/add_users_icon.png') }}" alt="">
+        <span>Add Users</span>
     </a>
     <a href="/logout">
-        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="Logout Icon">Logout
+        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="">
+        <span>Logout</span>
     </a>
 </div>
+
+<script>
+    function toggleSidebar() {
+        var sidebar = document.getElementById('sidebar');
+        var mainContent = document.querySelector('.main-content');
+        sidebar.classList.toggle('collapsed');
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed');
+        }
+    }
+</script>

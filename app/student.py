@@ -15,6 +15,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.units import inch
 
+from PyPDF2 import PdfReader, PdfWriter
+
 student_bp = Blueprint("student", __name__)
 
 @student_bp.route("/student", methods=["GET"])
@@ -182,174 +184,114 @@ def download_application_pdf():
         flash("Application not found or not approved by caretaker.", "danger")
         return redirect(url_for('student.profile'))
 
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-    
-    # Document margins
+    # Path to the PDF template
+    template_path = os.path.join("pdf_formats", "summer_interns.pdf")
+    if not os.path.exists(template_path):
+        flash("Template file not found.", "danger")
+        return redirect(url_for('student.profile'))
+
+    # Create a buffer for the overlay
+    overlay_buffer = BytesIO()
+    c = canvas.Canvas(overlay_buffer, pagesize=letter)
+
+    # Define custom coordinates for each field
+    details_coordinates = [
+        (215, 615, application.name),
+        (215, 592.5, application.gender),
+        (215, 570, application.affiliation),
+        (215, 535, application.address),
+        (330, 500, application.contact_number),
+        (450, 500, application.email),
+        (217, 639, application.faculty_mentor),
+        (350, 639, application.faculty_email),
+        (255, 450, application.arrival_date),
+        (355, 450, application.departure_date),
+        (125, 276, application.remarks if application.remarks else "N/A"),
+    ]
+
+    # Draw each field at its specified coordinates
+    c.setFont("Helvetica", 10)
+    for x, y, value in details_coordinates:
+        if value == application.email:  # Check if the current field is the email
+            c.setFont("Helvetica", 8)  # Set a smaller font size for the email
+            c.drawString(x, y, f"{value}")
+            c.setFont("Helvetica", 10)  # Reset to the default font size
+        else:
+            c.drawString(x, y, f"{value}")
+
+    c.drawString(145, 345, f"{application.arrival_date}")
+    c.drawString(155, 311, f"{application.departure_date}")
+
+    # Add Signatures Section (without signature boxes)
+    y_position = 200  # Starting y-coordinate for the signatures section
     margin = 50
-    content_width = width - (2 * margin)
-    
-    # Background for header - using valid color definition
-    c.setFillColorRGB(0.95, 0.95, 0.98)  # Light gray with slight blue tint
-    c.rect(margin, height - 110, content_width, 60, fill=True, stroke=False)
-    
-    # Title Styling
-    c.setFont("Helvetica-Bold", 22)
-    c.setFillColor(colors.darkblue)
-    c.drawCentredString(width / 2, height - 70, "Internship Application Approval")
+    signature_width = 100  # Width for each signature
 
-    # Underline Title - thicker and more prominent
-    c.setStrokeColor(colors.darkblue)
-    c.setLineWidth(2)
-    c.line(margin, height - 85, width - margin, height - 85)
-    
-    # Define structured layout with better spacing
-    left_x = margin + 20  # Reduced left margin to give more space
-    right_x = width / 2 + 20  # Adjusted right column starting point
-    y_position = height - 140
-    field_spacing = 35  # Space between fields
-    
-    # Adjusted spacing to accommodate longer emails
-    left_label_width = 120
-    right_label_width = 120
-    
-    # Add section title for personal details
-    c.setFillColor(colors.darkblue)
-    c.setFont("Helvetica-Bold", 14)
-    # c.drawString(margin, y_position, "Application Details")
-    y_position -= 25
-    
-    # Calculate required height for details section based on number of rows
-    num_rows = 6  # Number of rows in details
-    details_section_height = (num_rows * field_spacing) + 30  # Extra padding
-    
-    # Draw a border around the details section with rounded corners
-    c.setStrokeColor(colors.gray)
-    c.setLineWidth(1)
-    c.roundRect(margin, y_position - details_section_height + 5, content_width, details_section_height, 10, stroke=False, fill=False)
-    
-    # Application Details (Left & Right Column)
-    details = [
-        ("Name:", application.name, "Faculty Mentor:", application.faculty_mentor),
-        ("Gender:", application.gender, "Faculty Email:", application.faculty_email),
-        ("Affiliation:", application.affiliation, "Arrival Date:", application.arrival_date),
-        ("Address:", application.address, "Departure Date:", application.departure_date),
-        ("Contact Number:", application.contact_number, "Remarks:", application.remarks if application.remarks else "N/A"),
-        ("Email:", application.email, "", "")
+    # Signature labels and positions
+    signature_positions = [
+        (440,192),
+        (60,97),
+        (260,100)
     ]
 
-    for left_label, left_value, right_label, right_value in details:
-        # Label background for left column
-        c.setFillColorRGB(0.92, 0.92, 0.95)
-        c.rect(left_x - 5, y_position - 5, left_label_width, 25, fill=True, stroke=False)
-        
-        # Label and value for left column
-        c.setFillColor(colors.darkblue)
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(left_x, y_position, left_label)
-        
-        c.setFillColor(colors.black)
-        c.setFont("Helvetica", 10)  # Slightly smaller font for values
-        # Position the value with enough space after the label
-        c.drawString(left_x + left_label_width + 10, y_position, str(left_value))
-
-        # Only add right column if there's content
-        if right_label:
-            # Label background for right column
-            c.setFillColorRGB(0.92, 0.92, 0.95)
-            c.rect(right_x - 5, y_position - 5, right_label_width, 25, fill=True, stroke=False)
-            
-            # Label and value for right column
-            c.setFillColor(colors.darkblue)
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(right_x, y_position, right_label)
-            
-            c.setFillColor(colors.black)
-            c.setFont("Helvetica", 10)  # Slightly smaller font for values
-            
-            # Check if we're handling faculty email to prevent overflow
-            if right_label == "Faculty Email:":
-                # Use smaller font for email addresses
-                c.setFont("Helvetica", 9)
-            
-            # Position the value with enough space after the label
-            c.drawString(right_x + right_label_width + 10, y_position, str(right_value))
-
-        y_position -= field_spacing
-
-    # Recalculate y_position for signature section
-    y_position = height - 140 - details_section_height - 20
-    
-    # Section header for signatures
-    c.setFillColor(colors.darkblue)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(margin, y_position, "Signatures")
-    y_position -= 25
-    
-    # Draw a border around signature section
-    signature_section_height = 110
-    c.setStrokeColor(colors.gray)
-    c.roundRect(margin, y_position - signature_section_height + 10, content_width, signature_section_height, 10, stroke=True, fill=False)
-
-    # Signature boxes - better aligned
-    signature_width = content_width / 3
-    signature_box_height = 70
-    signature_boxes = [
-        (margin + signature_width * 0 + 10, "Faculty Signature"),
-        (margin + signature_width * 1 + 10, "HOD Signature"),
-        (margin + signature_width * 2 + 10, "Admin Signature")
-    ]
-    
+    # Retrieve signature data
     signature_data = [
         Faculty.query.get(application.faculty_signature_id),
         Faculty.query.get(application.hod_signature_id),
         Admin.query.get(application.admin_signature_id)
     ]
 
-    # Draw signature boxes and place signatures
-    for i, ((box_x, label), signature) in enumerate(zip(signature_boxes, signature_data)):
-        # Signature box
-        c.setStrokeColor(colors.gray)
-        c.roundRect(box_x, y_position - 80, signature_width - 20, signature_box_height, 5, stroke=True, fill=False)
-        
-        # Place signature image
+    # Draw signatures (with custom width and height for HOD signature)
+    for (x, y), signature in zip(signature_positions, signature_data):
+        # Place the signature image if it exists
         if signature and signature.signature:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
                 tmpfile.write(signature.signature)
                 tmpfile.flush()
-                # Center signature in box
-                c.drawImage(tmpfile.name, 
-                           box_x + 10, 
-                           y_position - 70, 
-                           width=signature_width - 40, 
-                           height=50)
-                os.unlink(tmpfile.name)
-        
-        # Signature label
-        c.setFillColor(colors.darkblue)
-        c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(box_x + (signature_width - 20) / 2, y_position - 90, label)
 
-    # Footer with gradient background
-    footer_y = 40
-    c.setFillColorRGB(0.95, 0.95, 0.98)
-    c.rect(margin, footer_y - 20, content_width, 30, fill=True, stroke=False)
-    
-    # Footer text
-    c.setFont("Helvetica-Oblique", 9)
-    c.setFillColor(colors.gray)
-    c.drawString(margin + 10, footer_y, "Generated by Hostel Management System")
-    c.drawRightString(width - margin - 10, footer_y, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    
-    # Document ID and page number
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(width / 2, footer_y, f"Application ID: {application.id} | Page 1 of 1")
+                # Check if the current signature is the HOD's signature
+                if signature == Faculty.query.get(application.hod_signature_id):
+                    # Custom width and height for HOD signature
+                    c.drawImage(tmpfile.name,
+                                x, y - 40,  # Adjust y-coordinate to fit the signature
+                                width=150,  # Custom width for HOD signature
+                                height=55)  # Custom height for HOD signature
+                else:
+                    # Default width and height for other signatures
+                    c.drawImage(tmpfile.name,
+                                x, y - 40,
+                                width=100,  # Default width
+                                height=40)  # Default height
+
+                os.unlink(tmpfile.name)
+
 
     c.save()
-    buffer.seek(0)
+    overlay_buffer.seek(0)
 
-    return send_file(buffer, as_attachment=True, download_name=f'internship_approval_{application.id}.pdf', mimetype='application/pdf')
+    # Read the template and overlay
+    template_reader = PdfReader(template_path)
+    overlay_reader = PdfReader(overlay_buffer)
+
+    # Merge the overlay onto the template (only on the first page)
+    writer = PdfWriter()
+    for i, page in enumerate(template_reader.pages):
+        if i == 0:  # Only overlay data on the first page
+            overlay_page = overlay_reader.pages[0]
+            page.merge_page(overlay_page)
+        writer.add_page(page)
+
+    # Write the final PDF to a buffer
+    final_buffer = BytesIO()
+    writer.write(final_buffer)
+    final_buffer.seek(0)
+
+    return send_file(
+        final_buffer,
+        as_attachment=True,
+        download_name=f'internship_approval_{application.id}.pdf',
+        mimetype='application/pdf'
+    )
 
 @student_bp.route("/student/complaint", methods=["GET"])
 def complaint():

@@ -1,16 +1,21 @@
 <style>
     .sidebar {
-        width: 260px;
+        width: 320px;
         background-color: #8b1d26; 
         color: #ecf0f1; 
         position: fixed;
         height: 100%;
         display: flex;
         flex-direction: column;
-        align-items: center;
         padding: 0; 
         box-shadow: 4px 0 8px rgba(0, 0, 0, 0.2);
         font-family: 'Arial', sans-serif;
+        overflow: hidden;
+        transition: width 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
     }
 
     .sidebar h3 {
@@ -25,6 +30,8 @@
         letter-spacing: 1px;
         width: 100%; 
         box-sizing: border-box; 
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     .sidebar a {
@@ -40,6 +47,8 @@
         align-items: center; 
         gap: 10px; 
         box-sizing: border-box;
+        white-space: nowrap;
+        overflow: hidden;
     }
 
     .sidebar a:hover {
@@ -58,30 +67,77 @@
         height: 20px; 
         object-fit: contain; 
     }
+
+    .toggle-btn {
+        background-color: #66151d;
+        color: white;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: background 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #781b24;
+    }
+
+    /* Hide text and header when collapsed */
+    .sidebar.collapsed a span,
+    .sidebar.collapsed h3 {
+        display: none;
+    }
+
+    .sidebar a span {
+        flex-grow: 1;
+    }
+
+    .main-content.collapsed {
+        margin-left: 70px; /* Adjust main content margin when sidebar is collapsed */
+    }
 </style>
 
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
     <h3>Faculty Dashboard</h3>
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <a href="/faculty">
-        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="Profile Icon">Manage Profile
+        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="">
+        <span>Manage Profile</span>
     </a>
     <a href="/faculty/pending_approvals">
-        <img src="{{ url_for('static', filename='icons/pending_approvals_icon.png') }}" alt="Pending Approvals Icon">Pending Approvals
+        <img src="{{ url_for('static', filename='icons/pending_approvals_icon.png') }}" alt="">
+        <span>Pending Approvals</span>
     </a>
     {% if session.get('user_role') == 'faculty' and session.get('is_hod') %}
     <a href="/faculty/hod_pending_approvals">
-        <img src="{{ url_for('static', filename='icons/hod_pending_approvals_icon.png') }}" alt="HOD Pending Approvals Icon">HOD Pending Approvals
+        <img src="{{ url_for('static', filename='icons/hod_pending_approvals_icon.png') }}" alt="">
+        <span>HOD Pending Approvals</span>
     </a>
     {% endif %}
     {% if session.get('user_role') == 'faculty' and session.get('is_chief_warden') %}
     <a href="/faculty/batch_allocation">
-        <img src="{{ url_for('static', filename='icons/batch_allocation_icon.png') }}" alt="Batch Allocation Icon">Batch Allocation
+        <img src="{{ url_for('static', filename='icons/batch_allocation_icon.png') }}" alt="">
+        <span>Batch Allocation</span>
     </a>
     <a href="/faculty/allocate_batch_sandbox">
-        <img src="{{ url_for('static', filename='icons/sandbox_icon.png') }}" alt="Sandbox Icon">Allocate Batch in Sandbox
+        <img src="{{ url_for('static', filename='icons/sandbox_icon.png') }}" alt="">
+        <span>Allocate Batch in Sandbox</span>
     </a>
     {% endif %}
     <a href="/logout">
-        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="Logout Icon">Logout
+        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="">
+        <span>Logout</span>
     </a>
 </div>
+
+<script>
+    function toggleSidebar() {
+        var sidebar = document.getElementById('sidebar');
+        var mainContent = document.querySelector('.main-content');
+        sidebar.classList.toggle('collapsed');
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed');
+        }
+    }
+</script>
