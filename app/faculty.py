@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify
-from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication
+from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel
 from app.database import db
 from flask_mail import Message
 from app import mail  
@@ -306,3 +306,59 @@ def save_batch_allocation():
 
     db.session.commit()
     return jsonify({"message": "Batch allocations saved successfully!"})
+
+@faculty_bp.route("/faculty/guest_room_booking_approvals", methods=["GET"])
+def guest_room_booking_approvals():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+    warden = Warden.query.filter_by(faculty_id=user_id).first()
+
+    if faculty is None or warden is None or not warden.is_chief:
+        return redirect(url_for('auth.login'))
+
+    bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
+    available_hostels = Hostel.query.filter(Hostel.guest_rooms > 0).all()
+
+    return render_template("faculty/guest_room_booking_approvals.html", bookings=bookings, faculty=faculty, hostels=available_hostels)
+
+@faculty_bp.route("/faculty/handle_guest_room_booking/<int:booking_id>", methods=["POST"])
+def handle_guest_room_booking(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+    warden = Warden.query.filter_by(faculty_id=user_id).first()
+
+    if faculty is None or warden is None or not warden.is_chief:
+        return redirect(url_for('auth.login'))
+
+    action = request.form.get('action')
+    booking = GuestRoomBooking.query.get(booking_id)
+
+    if booking:
+        if action == 'approve':
+            if booking.status == 'Pending approval from Chief Warden':
+                hostel_no = request.form.get('hostel_no')
+                hostel = Hostel.query.filter_by(hostel_no=hostel_no).first()
+                if hostel and hostel.guest_rooms > 0:
+                    booking.status = 'Approved'
+                    booking.hostel_no = hostel_no
+                    hostel.guest_rooms -= 1
+                    db.session.commit()
+                    flash("Booking approved and hostel allocated.", "success")
+                else:
+                    flash("Selected hostel does not have available guest rooms.", "danger")
+            else:
+                flash("Booking is not pending approval from Chief Warden.", "warning")
+        elif action == 'reject':
+            booking.status = 'Rejected'
+            db.session.commit()
+            flash("Booking rejected.", "danger")
+    else:
+        flash("Booking not found.", "danger")
+
+    return redirect(url_for('faculty.guest_room_booking_approvals'))

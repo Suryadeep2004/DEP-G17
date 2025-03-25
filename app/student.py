@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file, send_from_directory
-from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest
+from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest, GuestRoomBooking, Warden
 from werkzeug.utils import secure_filename
 from flask_mail import Message
 from app import mail  
@@ -318,7 +318,7 @@ def download_application_pdf():
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
                 tmpfile.write(signature.signature)
                 tmpfile.flush()
-                # Center signature in box
+                tmpfile.close()  # Ensure the file is closed before deletion
                 c.drawImage(tmpfile.name, 
                            box_x + 10, 
                            y_position - 70, 
@@ -451,3 +451,182 @@ def submit_room_change():
 
     flash("Your room change request has been submitted successfully.", "success")
     return redirect(url_for('student.room_change'))
+
+@student_bp.route("/student/guest_room_booking_form", methods=["GET"])
+def guest_room_booking_form():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    return render_template("student/guest_room_booking_form.html")
+
+@student_bp.route("/student/submit_guest_room_booking", methods=["POST"])
+def submit_guest_room_booking():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    total_guests = request.form.get('total_guests')
+    guests_male = request.form.get('guests_male')
+    guests_female = request.form.get('guests_female')
+    guest_names = request.form.get('guest_names')
+    relation_with_applicant = request.form.get('relation_with_applicant')
+    guest_address = request.form.get('guest_address')
+    guest_contact = request.form.get('guest_contact')
+    guest_email = request.form.get('guest_email')
+    purpose_of_visit = request.form.get('purpose_of_visit')
+    room_category = request.form.get('room_category')
+    date_arrival = request.form.get('date_arrival')
+    time_arrival = request.form.get('time_arrival')
+    date_departure = request.form.get('date_departure')
+    time_departure = request.form.get('time_departure')
+    accommodation_by = request.form.get('accommodation_by')
+    remarks = request.form.get('remarks')
+
+    # Convert date and time strings to Python date and time objects
+    date_arrival = datetime.strptime(date_arrival, '%Y-%m-%d').date()
+    time_arrival = datetime.strptime(time_arrival, '%H:%M').time()
+    date_departure = datetime.strptime(date_departure, '%Y-%m-%d').date()
+    time_departure = datetime.strptime(time_departure, '%H:%M').time()
+
+    guest_room_booking = GuestRoomBooking(
+        applicant_id=user_id,
+        total_guests=total_guests,
+        guests_male=guests_male,
+        guests_female=guests_female,
+        guest_names=guest_names,
+        relation_with_applicant=relation_with_applicant,
+        guest_address=guest_address,
+        guest_contact=guest_contact,
+        guest_email=guest_email,
+        purpose_of_visit=purpose_of_visit,
+        room_category=room_category,
+        date_arrival=date_arrival,
+        time_arrival=time_arrival,
+        date_departure=date_departure,
+        time_departure=time_departure,
+        accommodation_by=accommodation_by,
+        remarks=remarks,
+        status='Pending approval from JA (HM)'
+    )
+
+    db.session.add(guest_room_booking)
+    db.session.commit()
+
+    flash("Guest room booking application submitted successfully.", "success")
+    return redirect(url_for('student.profile'))
+
+@student_bp.route("/student/download_guest_room_booking_pdf", methods=["GET"])
+def download_guest_room_booking_pdf():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    booking = GuestRoomBooking.query.filter_by(applicant_id=user_id, status='Approved').first()
+    if not booking:
+        flash("No approved guest room booking found.", "danger")
+        return redirect(url_for('student.profile'))
+
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Document margins
+    margin = 50
+    content_width = width - (2 * margin)
+
+    # Title
+    c.setFont("Helvetica-Bold", 22)
+    c.setFillColor(colors.darkblue)
+    c.drawCentredString(width / 2, height - 70, "Guest Room Booking Approval")
+
+    # Booking details
+    y_position = height - 140
+    field_spacing = 20
+    c.setFont("Helvetica", 12)
+    c.setFillColor(colors.black)
+
+    booking_details = [
+        ("Applicant Name:", booking.applicant.name),
+        ("Total Guests:", booking.total_guests),
+        ("Male Guests:", booking.guests_male),
+        ("Female Guests:", booking.guests_female),
+        ("Guest Names:", booking.guest_names),
+        ("Relation with Applicant:", booking.relation_with_applicant),
+        ("Guest Address:", booking.guest_address),
+        ("Guest Contact:", booking.guest_contact),
+        ("Guest Email:", booking.guest_email),
+        ("Purpose of Visit:", booking.purpose_of_visit),
+        ("Room Category:", booking.room_category),
+        ("Date of Arrival:", booking.date_arrival),
+        ("Time of Arrival:", booking.time_arrival),
+        ("Date of Departure:", booking.date_departure),
+        ("Time of Departure:", booking.time_departure),
+        ("Accommodation By:", booking.accommodation_by),
+        ("Remarks:", booking.remarks),
+        ("Status:", booking.status),
+        ("Hostel:", booking.hostel.hostel_name if booking.hostel else "N/A")
+    ]
+
+    for label, value in booking_details:
+        c.drawString(margin, y_position, f"{label} {value}")
+        y_position -= field_spacing
+
+    # Signatures Section
+    y_position -= 40
+    c.setFillColor(colors.darkblue)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(margin, y_position, "Signatures")
+    y_position -= 25
+
+    signature_section_height = 110
+    c.setStrokeColor(colors.gray)
+    c.roundRect(margin, y_position - signature_section_height + 10, content_width, signature_section_height, 10, stroke=True, fill=False)
+
+    # Signature boxes
+    signature_width = content_width / 3
+    signature_box_height = 70
+    signature_boxes = [
+        (margin + signature_width * 0 + 10, "JA (HM) Signature"),
+        (margin + signature_width * 1 + 10, "Assistant Registrar (HM) Signature"),
+        (margin + signature_width * 2 + 10, "Chief Warden Signature")
+    ]
+
+    signature_data = [
+        Admin.query.filter_by(designation='JA (HM)').first(),
+        Admin.query.filter_by(designation='Assistant Registrar (HM)').first(),
+        Faculty.query.join(Warden).filter(Warden.is_chief == True, Warden.hostel_no == booking.hostel_no).first() if booking.hostel_no else None
+    ]
+
+    for (box_x, label), signature in zip(signature_boxes, signature_data):
+        c.setStrokeColor(colors.gray)
+        c.roundRect(box_x, y_position - 80, signature_width - 20, signature_box_height, 5, stroke=True, fill=False)
+
+        if signature and signature.signature:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+                tmpfile.write(signature.signature)
+                tmpfile.flush()
+                tmpfile.close()  # Ensure the file is closed before deletion
+                c.drawImage(tmpfile.name, box_x + 10, y_position - 70, width=signature_width - 40, height=50)
+                os.unlink(tmpfile.name)
+
+        c.setFillColor(colors.darkblue)
+        c.setFont("Helvetica-Bold", 10)
+        c.drawCentredString(box_x + (signature_width - 20) / 2, y_position - 90, label)
+
+    # Footer
+    footer_y = 40
+    c.setFillColorRGB(0.95, 0.95, 0.98)
+    c.rect(margin, footer_y - 20, content_width, 30, fill=True, stroke=False)
+
+    c.setFont("Helvetica-Oblique", 9)
+    c.setFillColor(colors.gray)
+    c.drawString(margin + 10, footer_y, "Generated by Hostel Management System")
+    c.drawRightString(width - margin - 10, footer_y, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(width / 2, footer_y, f"Booking ID: {booking.id} | Page 1 of 1")
+
+    c.save()
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name=f'guest_room_booking_{booking.id}.pdf', mimetype='application/pdf')

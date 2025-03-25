@@ -7,10 +7,15 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        align-items: center;
         padding: 0; 
         box-shadow: 4px 0 8px rgba(0, 0, 0, 0.2);
         font-family: 'Arial', sans-serif;
+        overflow: hidden;
+        transition: width 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
     }
 
     .sidebar h3 {
@@ -25,6 +30,19 @@
         letter-spacing: 1px;
         width: 100%; 
         box-sizing: border-box; 
+        flex-shrink: 0;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    .sidebar-content {
+        overflow-y: auto;
+        width: 100%;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 10px;
     }
 
     .sidebar a {
@@ -37,9 +55,12 @@
         border-radius: 8px;
         transition: background-color 0.3s ease, transform 0.2s ease;
         display: flex;
-        align-items: center; 
+        align-items: flex-start; 
         gap: 10px; 
         box-sizing: border-box;
+        white-space: normal;
+        word-break: break-word;
+        text-align: left;
     }
 
     .sidebar a:hover {
@@ -57,27 +78,84 @@
         width: 20px; 
         height: 20px; 
         object-fit: contain; 
+        flex-shrink: 0;
+    }
+
+    .toggle-btn {
+        background-color: #1c3b5f;
+        color: white;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: background 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #234a70;
+    }
+
+    .sidebar.collapsed a span,
+    .sidebar.collapsed h3 {
+        display: none;
+    }
+
+    .sidebar a span {
+        flex-grow: 1;
+    }
+
+    .main-content.collapsed {
+        margin-left: 70px;
     }
 </style>
 
-<div class="sidebar">
-    <h3>Student Dashboard</h3>
-    <a href="/student">
-        <img src="{{ url_for('static', filename='icons/profile_icon.png') }}" alt="Profile Icon">Manage Profile
-    </a>
-    <a href="/student/internship_form">
-        <img src="{{ url_for('static', filename='icons/form_icon.png') }}" alt="Form Icon">Internship Form
-    </a>
-    <a href="{{ url_for('student.download_application_pdf') }}">
-        <img src="{{ url_for('static', filename='icons/download_icon.png') }}" alt="Download Icon">Download Approved Application
-    </a>
-    <a href="{{ url_for('student.complaint') }}">
-        <img src="{{ url_for('static', filename='icons/complaint_icon.png') }}" alt="Complaint Icon">Complaint Section
-    </a>
-    <a href="{{ url_for('student.room_change') }}">
-        <img src="{{ url_for('static', filename='icons/room_change_icon.png') }}" alt="Room Change Icon">Room Change Request
-    </a>
-    <a href="/logout">
-        <img src="{{ url_for('static', filename='icons/logout_icon.png') }}" alt="Logout Icon">Logout
-    </a>
+<div class="sidebar" id="sidebar">
+    <h3>Student</h3>
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar-content">
+        <a href="/student">
+            <img src="{{ url_for('static', filename='icons/profile_icon.png') }}">
+            <span>Manage Profile</span>
+        </a>
+        <a href="/student/internship_form">
+            <img src="{{ url_for('static', filename='icons/form_icon.png') }}">
+            <span>Internship Form</span>
+        </a>
+        <a href="{{ url_for('student.download_application_pdf') }}">
+            <img src="{{ url_for('static', filename='icons/download_icon.png') }}">
+            <span>Download Application</span>
+        </a>
+        <a href="{{ url_for('student.guest_room_booking_form') }}">
+            <img src="{{ url_for('static', filename='icons/booking_icon.png') }}">
+            <span>Guest Room Booking</span>
+        </a>
+        <a href="{{ url_for('student.download_guest_room_booking_pdf') }}">
+            <img src="{{ url_for('static', filename='icons/download_icon.png') }}">
+            <span>Download Guest Room Application</span>
+        </a>
+        <a href="{{ url_for('student.complaint') }}">
+            <img src="{{ url_for('static', filename='icons/complaint_icon.png') }}">
+            <span>Complaint Section</span>
+        </a>
+        <a href="{{ url_for('student.room_change') }}">
+            <img src="{{ url_for('static', filename='icons/room_change_icon.png') }}">
+            <span>Room Change Request</span>
+        </a>
+        <a href="/logout">
+            <img src="{{ url_for('static', filename='icons/logout_icon.png') }}">
+            <span>Logout</span>
+        </a>
+    </div>
 </div>
+
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        sidebar.classList.toggle('collapsed');
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed');
+        }
+    }
+</script>

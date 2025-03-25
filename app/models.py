@@ -60,6 +60,7 @@ class Admin(db.Model):
     admin_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), primary_key=True)
     phone = db.Column(db.String(20), unique=True, nullable=False)
     signature = db.Column(db.LargeBinary)
+    designation = db.Column(db.String(100)) 
 
 class Hostel(db.Model):
     __tablename__ = 'hostel'
@@ -68,6 +69,7 @@ class Hostel(db.Model):
     hostel_type = db.Column(db.String(50))
     num_floors = db.Column(db.Integer)
     capacity = db.Column(db.Integer)
+    guest_rooms = db.Column(db.Integer, default=4)  # New attribute
 
     caretakers = db.relationship('Caretaker', backref='hostel', cascade="all, delete")
     wardens = db.relationship('Warden', backref='hostel', cascade="all, delete")
@@ -155,3 +157,30 @@ class RoomChangeRequest(db.Model):
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     student = db.relationship('Student', backref=db.backref('room_change_requests', cascade='all, delete-orphan'))
+
+class GuestRoomBooking(db.Model):
+    __tablename__ = 'guest_room_booking'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    applicant_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), nullable=False)
+    total_guests = db.Column(db.Integer, nullable=False)
+    guests_male = db.Column(db.Integer, nullable=False)
+    guests_female = db.Column(db.Integer, nullable=False)
+    guest_names = db.Column(db.Text, nullable=False)
+    relation_with_applicant = db.Column(db.Text, nullable=False)
+    guest_address = db.Column(db.Text, nullable=False)
+    guest_contact = db.Column(db.Text, nullable=False)
+    guest_email = db.Column(db.Text)
+    purpose_of_visit = db.Column(db.Text, nullable=False)
+    room_category = db.Column(db.Text, nullable=False)
+    date_arrival = db.Column(db.Date, nullable=False)
+    time_arrival = db.Column(db.Time, nullable=False)
+    date_departure = db.Column(db.Date, nullable=False)
+    time_departure = db.Column(db.Time, nullable=False)
+    accommodation_by = db.Column(db.Text, nullable=False)
+    remarks = db.Column(db.Text)
+    status = db.Column(db.Text, nullable=False, default='Pending')
+    hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    applicant = db.relationship('CustomUser', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
+    hostel = db.relationship('Hostel', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))

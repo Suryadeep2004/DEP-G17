@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db
+from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking
 import csv
 import io
 from io import BytesIO
@@ -371,3 +371,63 @@ def download_application_pdf(application_id):
     buffer.seek(0)
 
     return send_file(buffer, as_attachment=True, download_name=f'internship_approval_{application.id}.pdf', mimetype='application/pdf')
+
+@admin_bp.route("/admin/guest_room_booking_approvals", methods=["GET"])
+def guest_room_booking_approvals():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if admin is None or admin.designation not in ['JA (HM)', 'Assistant Registrar (HM)', 'Chief Warden']:
+        return redirect(url_for('auth.login'))
+
+    if admin.designation == 'JA (HM)':
+        bookings = GuestRoomBooking.query.filter_by(status='Pending approval from JA (HM)').all()
+    elif admin.designation == 'Assistant Registrar (HM)':
+        bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Assistant Registrar (HM)').all()
+    elif admin.designation == 'Chief Warden':
+        bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
+
+    return render_template("admin/guest_room_booking_approvals.html", bookings=bookings, admin=admin)
+
+@admin_bp.route("/admin/handle_guest_room_booking/<int:booking_id>", methods=["POST"])
+def handle_guest_room_booking(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if admin is None or admin.designation not in ['JA (HM)', 'Assistant Registrar (HM)', 'Chief Warden']:
+        return redirect(url_for('auth.login'))
+
+    action = request.form.get('action')
+    booking = GuestRoomBooking.query.get(booking_id)
+
+    if booking:
+        if action == 'approve':
+            if admin.designation == 'JA (HM)':
+                booking.status = 'Pending approval from Assistant Registrar (HM)'
+            elif admin.designation == 'Assistant Registrar (HM)':
+                booking.status = 'Pending approval from Chief Warden'
+            elif admin.designation == 'Chief Warden':
+                # Allocate hostel with available guest rooms
+                available_hostels = Hostel.query.filter(Hostel.guest_rooms > 0).all()
+                if available_hostels:
+                    booking.status = 'Approved'
+                    booking.hostel_no = available_hostels[0].hostel_no
+                    available_hostels[0].guest_rooms -= 1
+                else:
+                    flash("No available guest rooms in any hostel.", "danger")
+                    return redirect(url_for('admin.guest_room_booking_approvals'))
+            flash("Booking approved.", "success")
+        elif action == 'reject':
+            booking.status = 'Rejected'
+            flash("Booking rejected.", "danger")
+        db.session.commit()
+    else:
+        flash("Booking not found.", "danger")
+
+    return redirect(url_for('admin.guest_room_booking_approvals'))
