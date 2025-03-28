@@ -16,14 +16,17 @@
             background-color: #f8f9fa;
             min-height: 100vh;
         }
-        .navbar {
-            margin-bottom: 20px;
+        .header-content {
+            margin-left: 260px; 
+            background-color: #f8f9fa;
         }
     </style>
-</head>
+</head> 
 <body>
     {% include 'caretaker/sidebar.html' %}
-
+    <div class="header-content">
+        {% include 'includes/header.html' %}
+    </div>
     <div class="main-content">
         {% include 'includes/flash_messages.html' %}
         {% block content %}

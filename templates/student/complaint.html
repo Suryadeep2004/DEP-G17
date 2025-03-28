@@ -1,23 +1,36 @@
 {% extends "student/base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Complaint Section</h2>
-    <form method="POST" action="{{ url_for('student.submit_complaint') }}">
-        <div class="mb-3">
-            <label for="complaint_type" class="form-label">Complaint Type</label>
-            <select class="form-control" id="complaint_type" name="complaint_type" required>
-                <option value="Maintenance">Maintenance</option>
-                <option value="Cleanliness">Cleanliness</option>
-                <option value="Noise">Noise</option>
-                <option value="Other">Other</option>
-            </select>
+<div class="container">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0">Complaint Section</h4>
         </div>
-        <div class="mb-3">
-            <label for="description" class="form-label">Description</label>
-            <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('student.submit_complaint') }}">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label for="complaint_type" class="form-label">Complaint Type</label>
+                        <select class="form-select" id="complaint_type" name="complaint_type" required>
+                            <option value="" selected disabled>Select a type</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Cleanliness">Cleanliness</option>
+                            <option value="Noise">Noise</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="5" placeholder="Describe your issue clearly..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-end">
+                    <button type="submit" class="btn btn-danger px-4">Submit Complaint</button>
+                </div>
+            </form>
         </div>
-        <button type="submit" class="btn btn-primary">Submit Complaint</button>
-    </form>
+    </div>
 </div>
 {% endblock %}

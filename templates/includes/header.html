@@ -1,112 +1,160 @@
-<div class="ezy__nav4 light">
-	<nav class="navbar navbar-expand-lg py-3">
-		<div class="container">
-			<a class="navbar-brand" href="/">
-				<img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" class="logo-img">
-			</a>
+<div class="ezy__nav4 glass">
+    <nav class="navbar navbar-expand-lg py-3">
+        <div class="container">
+            <!-- Logo & Branding -->
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" class="logo-img">
+                <span class="fw-bold fs-5 text-dark">Hostel Management System</span>
+            </a>
 
-			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ezy_nav4-navbar-text"
-				aria-controls="ezy_nav4-navbar-text" aria-expanded="false" aria-label="Toggle navigation">
-				<span><span></span></span>
-			</button>
+            <!-- Hamburger Toggle -->
+            <button class="navbar-toggler stylish-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#ezy_nav4-navbar-text" aria-controls="ezy_nav4-navbar-text" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="toggler-icon"></span>
+            </button>
 
-			<div class="collapse navbar-collapse" id="ezy_nav4-navbar-text">
-				<ul class="navbar-nav mx-auto mb-2 mb-lg-0">
-					<li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-					<li class="nav-item"><a class="nav-link" href="/about">About</a></li>
-					<li class="nav-item"><a class="nav-link" href="/contact">Contact Us</a></li>
+            <!-- Centered Nav + Right-side Auth -->
+            <div class="collapse navbar-collapse justify-content-between" id="ezy_nav4-navbar-text">
+				<ul class="navbar-nav me-auto d-flex justify-content-center gap-3" style="margin-left: 4.5rem;">
+					<li class="nav-item"><a class="nav-link nav-hover" href="/">Home</a></li>
+					<li class="nav-item"><a class="nav-link nav-hover" href="/about">About</a></li>
+					<li class="nav-item"><a class="nav-link nav-hover" href="/contact">Contact</a></li>
 				</ul>
-
+			
+				{% if session['user_role'] %}
+				<div class="dropdown">
+				<button class="btn user-dropdown-btn dropdown-toggle" type="button" id="userDropdown"
+					data-bs-toggle="dropdown" aria-expanded="false">
+					{{ session['user_name'] }}
+				</button>
+				<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+					<li><span class="dropdown-item-text text-muted small">{{ session['user_email'] }}</span></li>
+					<li><hr class="dropdown-divider"></li>
+					<li><a class="dropdown-item" href="{{ url_for(session['user_role'] + '.profile') }}">Dashboard</a></li>
+					<li><a class="dropdown-item" href="/logout">Logout</a></li>
+				</ul>
+				</div>
+				{% else %}
 				<a href="/login" class="btn custom-login-btn ms-lg-3">Login</a>
-			</div>
-		</div>
-	</nav>
+				{% endif %}
+			</div>			
+        </div>
+    </nav>
 </div>
 
 <style>
-.ezy__nav4 {
-	background: linear-gradient(to bottom, #ffffff, #f8f9fa);
-	border-bottom: 1px solid #e0e0e0; 
-	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); 
-	position: sticky;
-	top: 0;
-	z-index: 1000;
+/* Overall nav container */
+.ezy__nav4.glass {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.85);
+    border-bottom: 1px solid rgba(200, 200, 200, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    transition: background 0.3s ease;
 }
 
-.ezy__nav4 .navbar-brand img {
-	height: 50px;
-	width: auto;
-	display: block;
+/* Branding */
+.ezy__nav4 .navbar-brand img.logo-img {
+    height: 45px;
+    width: auto;
 }
 
-.ezy__nav4 .navbar-nav .nav-link {
-	font-size: 16px;
-	font-weight: 600;
-	text-transform: uppercase;
-	color: #343a40;
-	margin: 0 10px;
-	transition: color 0.3s ease;
+.navbar-brand span {
+    font-size: 18px;
 }
 
-.ezy__nav4 .navbar-nav .nav-link:hover,
-.ezy__nav4 .navbar-nav .nav-link:focus,
-.ezy__nav4 .navbar-nav .nav-link.active {
-	color: #ff6b6b; 
+/* Nav items (centered) */
+.navbar-nav {
+    flex-direction: row;
+    align-items: center;
 }
 
+.navbar-nav .nav-item {
+    margin: 0 10px;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    font-size: 17px;
+    padding: 10px 16px;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.navbar-nav .nav-link.nav-hover:hover {
+    color: #1b5e20;
+    background-color: rgba(27, 94, 32, 0.1);
+    border-radius: 6px;
+}
+
+/* Login button */
 .custom-login-btn {
-	background: linear-gradient(135deg, #ff6b6b, #d32f2f);
-	color: #ffffff;
-	font-size: 16px;
-	font-weight: bold;
-	border-radius: 8px;
-	padding: 8px 18px;
-	border: none;
-	transition: all 0.3s ease-in-out;
-	text-transform: uppercase;
+    background: linear-gradient(135deg, #4caf50, #1b5e20);
+    color: #ffffff;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-radius: 8px;
+    padding: 8px 20px;
+    border: none;
+    transition: all 0.3s ease;
+    font-size: 15px;
 }
 
 .custom-login-btn:hover {
-	background: linear-gradient(135deg, #d32f2f, #b71c1c);
-	color: #ffffff;
-	box-shadow: 0 4px 10px rgba(211, 47, 47, 0.5);
-	transform: scale(1.05);
+    background: linear-gradient(135deg, #1b5e20, #06611c);
+    box-shadow: 0 4px 10px rgba(27, 94, 32, 0.4);
+    transform: scale(1.05);
 }
 
-.ezy__nav4 .navbar-toggler {
-	border: none;
-	outline: none;
+/* Dropdown (right side) */
+.user-dropdown-btn {
+    background-color: #f0f0f0;
+    color: #333;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
 }
 
-.ezy__nav4 .navbar-toggler span {
-	display: flex;
-	align-items: center;
-	height: 24px;
+.user-dropdown-btn:hover {
+    background-color: #e0e0e0;
+    color: #000;
 }
 
-.ezy__nav4 .navbar-toggler span span {
-	height: 2px;
-	background-color: #343a40;
-	width: 20px;
-	border-radius: 5px;
-	position: relative;
+/* Stylish hamburger */
+.stylish-toggler {
+    border: none;
+    background: transparent;
 }
 
-.ezy__nav4 .navbar-toggler span span::before,
-.ezy__nav4 .navbar-toggler span span::after {
-	content: '';
-	position: absolute;
-	width: 20px;
-	height: 2px;
-	background-color: #343a40;
-	border-radius: 5px;
+.toggler-icon {
+    width: 24px;
+    height: 2px;
+    background-color: #333;
+    display: block;
+    position: relative;
+    transition: all 0.3s ease;
 }
 
-.ezy__nav4 .navbar-toggler span span::before {
-	top: -5px;
+.toggler-icon::before,
+.toggler-icon::after {
+    content: '';
+    width: 24px;
+    height: 2px;
+    background-color: #333;
+    position: absolute;
+    left: 0;
+    transition: all 0.3s ease;
 }
 
-.ezy__nav4 .navbar-toggler span span::after {
-	top: 5px;
+.toggler-icon::before {
+    top: -7px;
+}
+
+.toggler-icon::after {
+    top: 7px;
 }
 </style>

@@ -36,7 +36,8 @@ def login():
                 return redirect(url_for("auth.login"))
             
             session['user_id'] = user.id
-            
+            session['user_name'] = user.name  
+            session['user_email'] = user.email  
             if Student.query.filter_by(student_id=user.id).first():
                 session['user_role'] = 'student'
                 return redirect(url_for("student.profile"))
@@ -129,9 +130,6 @@ def register():
 
 @auth_bp.route("/logout")
 def logout():
-    session.pop('user_id', None)
-    session.pop('user_role', None)
-    session.pop('is_hod', None)
-    session.pop('is_chief_warden', None)
+    session.clear()  # Clear all session variables
     flash("You have been logged out.", "success")
     return redirect(url_for("auth.login"))

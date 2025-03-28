@@ -1,38 +1,37 @@
 <style>
     .sidebar {
         width: 260px;
-        background-color: #5a4e1e; 
+        background-color: #5a4e1e; /* Dark gold/brown */
         color: #fdfdfd;
         position: fixed;
         height: 100%;
         display: flex;
         flex-direction: column;
         padding: 0;
-        box-shadow: 4px 0 8px rgba(0, 0, 0, 0.2);
-        font-family: 'Arial', sans-serif;
+        box-shadow: 4px 0 10px rgba(0, 0, 0, 0.15);
+        font-family: 'Segoe UI', sans-serif;
         overflow: hidden;
         transition: width 0.3s ease;
+        z-index: 10;
     }
 
     .sidebar.collapsed {
         width: 70px;
     }
 
-    .sidebar h3 {
-        font-size: 1.6rem;
-        font-weight: bold;
-        margin: 0; 
+    .toggle-btn {
         background-color: #3f3312;
-        color: #ffffff; 
-        padding: 20px 0; 
-        text-transform: uppercase;
-        text-align: center;
-        letter-spacing: 1px;
+        color: white;
+        border: none;
+        padding: 12px;
+        cursor: pointer;
+        font-size: 1.2rem;
         width: 100%;
-        box-sizing: border-box; 
-        flex-shrink: 0;
-        white-space: nowrap;
-        overflow: hidden;
+        transition: background-color 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #5a4e1e;
     }
 
     .sidebar-content {
@@ -41,112 +40,91 @@
         flex-grow: 1;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
         padding-top: 10px;
     }
 
     .sidebar a {
         text-decoration: none;
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         color: #fdfdfd;
-        margin: 12px 0;
+        margin: 6px auto;
         padding: 12px 20px;
-        width: 100%;
+        width: 90%;
         border-radius: 8px;
-        transition: background-color 0.3s ease, transform 0.2s ease;
         display: flex;
-        align-items: center;
-        gap: 10px; 
-        box-sizing: border-box;
-        white-space: nowrap;
-        overflow: hidden;
-    }
-
-    .sidebar a:hover {
-        background-color: #c9a33b; 
-        color: #3f3312; 
-        transform: scale(0.95);
-    }
-
-    .sidebar a:active {
-        background-color: #b8932d; 
-        color: #ffffff;
-    }
-
-    .sidebar a img {
-        width: 20px; 
-        height: 20px; 
-        object-fit: contain; 
-    }
-
-    .toggle-btn {
-        background-color: #3f3312;
-        color: white;
-        border: none;
-        padding: 10px;
-        cursor: pointer;
-        font-size: 1.2rem;
-        width: 100%;
-        transition: background 0.3s ease;
-    }
-
-    .toggle-btn:hover {
-        background-color: #5a4e1e;
-    }
-
-    /* Hide text and header when collapsed */
-    .sidebar.collapsed a span,
-    .sidebar.collapsed h3 {
-        display: none;
+        justify-content: center;
+        transition: background-color 0.3s ease, transform 0.2s ease;
     }
 
     .sidebar a span {
         flex-grow: 1;
+        text-align: left;
+    }
+
+    .sidebar a:hover {
+        background-color: #c9a33b; /* Gold hover */
+        color: #3f3312;
+        transform: translateX(3px);
+    }
+
+    .sidebar a:active {
+        background-color: #b8932d;
+        color: #ffffff;
+    }
+
+    /* Collapsed view: show only toggle */
+    .sidebar.collapsed .sidebar-content,
+    .sidebar.collapsed h3 {
+        display: none;
+    }
+
+    .main-content {
+        margin-left: 260px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        min-height: 100vh;
+        transition: margin-left 0.3s ease;
     }
 
     .main-content.collapsed {
         margin-left: 70px;
     }
+
+    .header-content {
+        margin-left: 260px;
+        background-color: #f8f9fa;
+        transition: margin-left 0.3s ease;
+    }
+
+    .header-content.collapsed {
+        margin-left: 70px;
+    }
 </style>
 
 <div class="sidebar" id="sidebar">
-    <h3>Admin</h3>
     <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <div class="sidebar-content">
-        <a href="/admin">
-            <img src="{{ url_for('static', filename='icons/profile_icon.png') }}">
-            <span>Manage Profile</span>
-        </a>
-        <a href="/admin/pending_internship_applications">
-            <img src="{{ url_for('static', filename='icons/pending_approvals_icon.png') }}">
-            <span>Pending Internship Applications</span>
-        </a>
-        <a href="{{ url_for('admin.approved_applications') }}">
-            <img src="{{ url_for('static', filename='icons/approved_icon.png') }}">
-            <span>Approved Applications</span>
-        </a>
-        <a href="{{ url_for('admin.guest_room_booking_approvals') }}">
-            <img src="{{ url_for('static', filename='icons/booking_approvals_icon.png') }}">
-            <span>Guest Room Booking Approvals</span>
-        </a>
-        <a href="{{ url_for('admin.add_users') }}">
-            <img src="{{ url_for('static', filename='icons/add_users_icon.png') }}">
-            <span>Add Users</span>
-        </a>
-        <a href="/logout">
-            <img src="{{ url_for('static', filename='icons/logout_icon.png') }}">
-            <span>Logout</span>
-        </a>
+        <a href="/admin"><span>Manage Profile</span></a>
+        <a href="/admin/pending_internship_applications"><span>Pending Internship Applications</span></a>
+        <a href="{{ url_for('admin.approved_applications') }}"><span>Approved Applications</span></a>
+        <a href="{{ url_for('admin.guest_room_booking_approvals') }}"><span>Guest Room Booking Approvals</span></a>
+        <a href="{{ url_for('admin.add_users') }}"><span>Add Users</span></a>
+        <a href="/logout"><span>Logout</span></a>
     </div>
 </div>
 
 <script>
     function toggleSidebar() {
-        var sidebar = document.getElementById('sidebar');
-        var mainContent = document.querySelector('.main-content');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
         sidebar.classList.toggle('collapsed');
         if (mainContent) {
             mainContent.classList.toggle('collapsed');
+        }
+        if (headerContent) {
+            headerContent.classList.toggle('collapsed');
         }
     }
 </script>
