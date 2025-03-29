@@ -1,8 +1,12 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify
-from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify, send_file
+from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel, Student
 from app.database import db
 from flask_mail import Message
-from app import mail  
+from app import mail 
+from PyPDF2 import PdfReader, PdfWriter
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 faculty_bp = Blueprint("faculty", __name__)
 
@@ -355,10 +359,104 @@ def handle_guest_room_booking(booking_id):
             else:
                 flash("Booking is not pending approval from Chief Warden.", "warning")
         elif action == 'reject':
-            booking.status = 'Rejected'
+            booking.status = 'Rejected by Chief Warden'
             db.session.commit()
             flash("Booking rejected.", "danger")
     else:
         flash("Booking not found.", "danger")
 
     return redirect(url_for('faculty.guest_room_booking_approvals'))
+
+@faculty_bp.route("/faculty/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
+def faculty_view_guest_room_booking_pdf(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking:
+        flash("Guest room booking application not found.", "danger")
+        return redirect(url_for('faculty.guest_room_booking_approvals'))
+
+    # Retrieve the student's details from the Student model
+    student = Student.query.filter_by(student_id=booking.applicant_id).first()
+    if not student:
+        flash("Student details not found.", "danger")
+        return redirect(url_for('faculty.guest_room_booking_approvals'))
+
+    template_path = "static/pdf formats/Guest room booking form.pdf"
+
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=letter)
+    can.setFont("Helvetica", 10)
+
+    # --- Fill Data on PDF ---
+    can.drawString(70, 605, f"{booking.applicant.name}")  # Applicant name
+    can.drawString(460, 605, f"{student.student_phone or 'N/A'}")  # Use student's phone number
+    can.drawString(350, 605, f"{student.student_roll or 'N/A'}")  # Use student's entry number
+    can.drawString(160, 605, "Student")  # Indicate the role as "Student"
+    can.drawString(265, 605, f"{student.department or 'N/A'}")
+    email_without_domain = booking.applicant.email.split('@')[0]
+    can.drawString(265, 582, f"{email_without_domain}")
+
+    can.drawString(250, 560, f"{booking.guests_male}")
+    can.drawString(300, 560, f"{booking.guests_female}")
+    can.drawString(450, 560, f"{booking.total_guests}")
+    can.drawString(235, 536, f"{booking.guest_names}")
+    can.drawString(235, 512, f"{booking.relation_with_applicant}")
+    can.drawString(235, 479, f"{booking.guest_address}")
+    can.drawString(317, 443, f"{booking.guest_contact}")
+    can.drawString(430, 443, f"{booking.guest_email or 'N/A'}")
+    can.drawString(130, 420, f"{booking.purpose_of_visit}")
+
+    # Room category
+    if booking.room_category == "A":
+        can.drawString(327, 407, "\u2713")
+    else:
+        can.drawString(390, 407, "\u2713")
+
+    # Accommodation by
+    if booking.accommodation_by == "Guest":
+        can.drawString(340, 257, "\u2713")
+    else:
+        can.drawString(420, 257, "\u2713")
+
+    # Render date and time separately
+    can.drawString(140, 350, f"{booking.date_arrival.strftime('%d')}")
+    can.drawString(180, 350, f"{booking.date_arrival.strftime('%m')}")
+    can.drawString(230, 350, f"{int(booking.date_arrival.strftime('%Y')) % 100}")
+    can.drawString(360, 350, f"{booking.time_arrival.strftime('%H')}:{booking.time_arrival.strftime('%M')}")  # 24-hour format
+
+    can.drawString(140 + 10, 315, f"{booking.date_departure.strftime('%d')}")
+    can.drawString(180 + 10, 315, f"{booking.date_departure.strftime('%m')}")
+    can.drawString(230 + 10, 315, f"{int(booking.date_departure.strftime('%Y')) % 100}")
+    can.drawString(360, 315, f"{booking.time_departure.strftime('%H')}:{booking.time_departure.strftime('%M')}")  # 24-hour format
+
+    can.drawString(125, 220, f"{booking.remarks or 'N/A'}")
+
+    # Render hostel details if approved by Chief Warden
+    if booking.status == "Approved" and booking.hostel:
+        can.drawString(300, 128, f"{booking.hostel.hostel_name}")
+
+    can.save()
+    packet.seek(0)
+
+    reader = PdfReader(template_path)
+    writer = PdfWriter()
+    overlay = PdfReader(packet)
+
+    # Merge the overlay only with the first page of the template
+    if len(reader.pages) > 0:
+        first_page = reader.pages[0]
+        first_page.merge_page(overlay.pages[0])
+        writer.add_page(first_page)
+
+    output = BytesIO()
+    writer.write(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype="application/pdf",
+        download_name="guest_room_booking_filled.pdf",
+        as_attachment=False  # This ensures the PDF is displayed inline
+    )

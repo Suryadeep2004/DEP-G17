@@ -6,6 +6,7 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import tempfile
+from PyPDF2 import PdfReader, PdfWriter
 
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -387,8 +388,6 @@ def guest_room_booking_approvals():
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from JA (HM)').all()
     elif admin.designation == 'Assistant Registrar (HM)':
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Assistant Registrar (HM)').all()
-    elif admin.designation == 'Chief Warden':
-        bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
 
     return render_template("admin/guest_room_booking_approvals.html", bookings=bookings, admin=admin)
 
@@ -424,10 +423,136 @@ def handle_guest_room_booking(booking_id):
                     return redirect(url_for('admin.guest_room_booking_approvals'))
             flash("Booking approved.", "success")
         elif action == 'reject':
-            booking.status = 'Rejected'
+            # Update the status to reflect who rejected the booking
+            if admin.designation == 'JA (HM)':
+                booking.status = 'Rejected by JA (HM)'
+            elif admin.designation == 'Assistant Registrar (HM)':
+                booking.status = 'Rejected by Assistant Registrar (HM)'
+            elif admin.designation == 'Chief Warden':
+                booking.status = 'Rejected by Chief Warden'
             flash("Booking rejected.", "danger")
         db.session.commit()
     else:
         flash("Booking not found.", "danger")
 
     return redirect(url_for('admin.guest_room_booking_approvals'))
+
+@admin_bp.route("/admin/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
+def admin_view_guest_room_booking_pdf(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking:
+        flash("Guest room booking application not found.", "danger")
+        return redirect(url_for('admin.guest_room_booking_approvals'))
+
+    # Retrieve the student's details from the Student model
+    student = Student.query.filter_by(student_id=booking.applicant_id).first()
+    if not student:
+        flash("Student details not found.", "danger")
+        return redirect(url_for('admin.guest_room_booking_approvals'))
+
+    template_path = "static/pdf formats/Guest room booking form.pdf"
+
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=letter)
+    can.setFont("Helvetica", 10)
+
+    # --- Fill Data on PDF ---
+    can.drawString(70, 605, f"{booking.applicant.name}")  # Applicant name
+    can.drawString(460, 605, f"{student.student_phone or 'N/A'}")  # Use student's phone number
+    can.drawString(350, 605, f"{student.student_roll or 'N/A'}")  # Use student's entry number
+    can.drawString(160, 605, "Student")  # Indicate the role as "Student"
+    can.drawString(265, 605, f"{student.department or 'N/A'}")
+    email_without_domain = booking.applicant.email.split('@')[0]
+    can.drawString(265, 582, f"{email_without_domain}")
+
+    can.drawString(250, 560, f"{booking.guests_male}")
+    can.drawString(300, 560, f"{booking.guests_female}")
+    can.drawString(450, 560, f"{booking.total_guests}")
+    can.drawString(235, 536, f"{booking.guest_names}")
+    can.drawString(235, 512, f"{booking.relation_with_applicant}")
+    can.drawString(235, 479, f"{booking.guest_address}")
+    can.drawString(317, 443, f"{booking.guest_contact}")
+    can.drawString(430, 443, f"{booking.guest_email or 'N/A'}")
+    can.drawString(130, 420, f"{booking.purpose_of_visit}")
+
+    # Room category
+    if booking.room_category == "A":
+        can.drawString(327, 407, "\u2713")
+    else:
+        can.drawString(390, 407, "\u2713")
+
+    # Accommodation by
+    if booking.accommodation_by == "Guest":
+        can.drawString(340, 257, "\u2713")
+    else:
+        can.drawString(420, 257, "\u2713")
+
+    # Render date and time separately
+    can.drawString(140, 350, f"{booking.date_arrival.strftime('%d')}")
+    can.drawString(180, 350, f"{booking.date_arrival.strftime('%m')}")
+    can.drawString(230, 350, f"{int(booking.date_arrival.strftime('%Y')) % 100}")
+    can.drawString(360, 350, f"{booking.time_arrival.strftime('%H')}:{booking.time_arrival.strftime('%M')}")  # 24-hour format
+
+    can.drawString(140 + 10, 315, f"{booking.date_departure.strftime('%d')}")
+    can.drawString(180 + 10, 315, f"{booking.date_departure.strftime('%m')}")
+    can.drawString(230 + 10, 315, f"{int(booking.date_departure.strftime('%Y')) % 100}")
+    can.drawString(360, 315, f"{booking.time_departure.strftime('%H')}:{booking.time_departure.strftime('%M')}")  # 24-hour format
+
+    can.drawString(125, 220, f"{booking.remarks or 'N/A'}")
+
+    # Render hostel details if approved by Chief Warden
+    if booking.status == "Approved" and booking.hostel:
+        can.drawString(300, 128, f"{booking.hostel.hostel_name}")
+
+    # Render signatures based on approval status
+    y_position = 150
+    signature_section_height = 110
+    can.setFont("Helvetica-Bold", 12)
+
+    if booking.status in ["Approved by JA (HM)", "Approved by Assistant Registrar (HM)", "Approved"]:
+        ja_hm = Admin.query.filter_by(designation="JA (HM)").first()
+        if ja_hm and ja_hm.signature:
+            can.drawImage(ImageReader(BytesIO(ja_hm.signature)), 470, y_position - 10, width=50, height=30)
+
+    if booking.status in ["Approved by Assistant Registrar (HM)", "Approved"]:
+        ar_hm = Admin.query.filter_by(designation="Assistant Registrar (HM)").first()
+        if ar_hm and ar_hm.signature:
+            can.drawImage(ImageReader(BytesIO(ar_hm.signature)), 100, y_position - 10 - 70, width=50, height=30)
+
+    if booking.status == "Approved":
+        chief_warden_entry = Warden.query.filter_by(is_chief=1).first()
+        if chief_warden_entry:
+            chief_warden = Faculty.query.filter_by(faculty_id=chief_warden_entry.faculty_id).first()
+            if chief_warden and chief_warden.signature:
+                can.drawImage(ImageReader(BytesIO(chief_warden.signature)), 470, y_position - 10-70, width=50, height=30)
+                
+    can.save()
+    packet.seek(0)
+
+    reader = PdfReader(template_path)
+    writer = PdfWriter()
+    overlay = PdfReader(packet)
+
+    # Merge the overlay only with the first page of the template
+    if len(reader.pages) > 0:
+        first_page = reader.pages[0]
+        first_page.merge_page(overlay.pages[0])
+        writer.add_page(first_page)
+
+    # Add the remaining pages of the template without modification
+    for page in reader.pages[1:]:
+        writer.add_page(page)
+
+    output = BytesIO()
+    writer.write(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype="application/pdf",
+        download_name="guest_room_booking_filled.pdf",
+        as_attachment=False  # This ensures the PDF is displayed inline
+    )

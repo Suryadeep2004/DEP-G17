@@ -26,7 +26,11 @@
                     <td>{{ booking.date_departure }} {{ booking.time_departure }}</td>
                     <td>{{ booking.status }}</td>
                     <td>
-                        <form method="POST" action="{{ url_for('admin.handle_guest_room_booking', booking_id=booking.id) }}">
+                        <!-- View PDF Button -->
+                        <button class="btn btn-info btn-sm mb-2" onclick="viewPDF({{ booking.id }})">View PDF</button>
+                        
+                        <!-- Approve/Reject Buttons -->
+                        <form method="POST" action="{{ url_for('admin.handle_guest_room_booking', booking_id=booking.id) }}" class="d-inline">
                             <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Approve</button>
                             <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm mb-2">Reject</button>
                         </form>
@@ -37,4 +41,28 @@
         </table>
     </div>
 </div>
+
+<!-- Modal for Viewing PDF -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfModalLabel">Guest Room Booking PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <iframe id="pdfViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function viewPDF(bookingId) {
+        const pdfUrl = `/admin/view_guest_room_booking_pdf/${bookingId}`;
+        document.getElementById('pdfViewer').src = pdfUrl;
+        const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
+        pdfModal.show();
+    }
+</script>
 {% endblock %}

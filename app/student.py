@@ -6,6 +6,7 @@ from app import mail
 import os
 from datetime import datetime
 from io import BytesIO
+from PyPDF2 import PdfReader, PdfWriter
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import tempfile
@@ -142,7 +143,7 @@ def submit_internship_form():
         admin_msg.body = (
             f"Dear Admin,\n\n"
             f"A new internship application has been submitted by {name}.\n\n"
-            f"Details:\n"
+            f"Details:\n" 
             f"Name: {name}\n"
             f"Gender: {gender}\n"
             f"Affiliation: {affiliation}\n"
@@ -514,118 +515,142 @@ def submit_guest_room_booking():
     flash("Guest room booking application submitted successfully.", "success")
     return redirect(url_for('student.profile'))
 
-@student_bp.route("/student/download_guest_room_booking_pdf", methods=["GET"])
-def download_guest_room_booking_pdf():
+@student_bp.route("/student/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
+def view_guest_room_booking_pdf(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking:
+        flash("No guest room booking application found.", "danger")
+        return redirect(url_for('student.status'))
+
+    # Retrieve the student's details from the Student model
+    student = Student.query.filter_by(student_id=booking.applicant_id).first()
+    if not student:
+        flash("Student details not found.", "danger")
+        return redirect(url_for('student.status'))
+
+    template_path = "static/pdf formats/Guest room booking form.pdf"
+
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=letter)
+    can.setFont("Helvetica", 10)
+
+    # --- Fill Data on PDF ---
+    can.drawString(70, 605, f"{booking.applicant.name}")  # Applicant name
+    can.drawString(460, 605, f"{student.student_phone or 'N/A'}")  # Use student's phone number
+    can.drawString(350, 605, f"{student.student_roll or 'N/A'}")  # Use student's entry number
+    can.drawString(160, 605, "Student")  # Indicate the role as "Student"
+    can.drawString(265, 605, f"{student.department or 'N/A'}")
+    email_without_domain = booking.applicant.email.split('@')[0]
+    can.drawString(265, 582, f"{email_without_domain}")
+
+    can.drawString(250, 560, f"{booking.guests_male}")
+    can.drawString(300, 560, f"{booking.guests_female}")
+    can.drawString(450, 560, f"{booking.total_guests}")
+    can.drawString(235, 536, f"{booking.guest_names}")
+    can.drawString(235, 512, f"{booking.relation_with_applicant}")
+    can.drawString(235, 479, f"{booking.guest_address}")
+    can.drawString(317, 443, f"{booking.guest_contact}")
+    can.drawString(430, 443, f"{booking.guest_email or 'N/A'}")
+    can.drawString(130, 420, f"{booking.purpose_of_visit}")
+
+    # Room category
+    if booking.room_category == "A":
+        can.drawString(327, 407, "\u2713")
+    else:
+        can.drawString(390, 407, "\u2713")
+
+    # Accommodation by
+    if booking.accommodation_by == "Guest":
+        can.drawString(340, 257, "\u2713")
+    else:
+        can.drawString(420, 257, "\u2713")
+
+    # Render date and time separately
+    can.drawString(140, 350, f"{booking.date_arrival.strftime('%d')}")
+    can.drawString(180, 350, f"{booking.date_arrival.strftime('%m')}")
+    can.drawString(230, 350, f"{int(booking.date_arrival.strftime('%Y')) % 100}")
+    can.drawString(360, 350, f"{booking.time_arrival.strftime('%H')}:{booking.time_arrival.strftime('%M')}")  # 24-hour format
+
+    can.drawString(140 + 10, 315, f"{booking.date_departure.strftime('%d')}")
+    can.drawString(180 + 10, 315, f"{booking.date_departure.strftime('%m')}")
+    can.drawString(230 + 10, 315, f"{int(booking.date_departure.strftime('%Y')) % 100}")
+    can.drawString(360, 315, f"{booking.time_departure.strftime('%H')}:{booking.time_departure.strftime('%M')}")  # 24-hour format
+
+    can.drawString(125, 220, f"{booking.remarks or 'N/A'}")
+
+    # Render hostel details if approved by Chief Warden
+    if booking.status == "Approved" and booking.hostel:
+        can.drawString(300, 128, f"{booking.hostel.hostel_name}")
+
+    # Render signatures based on approval status
+    y_position = 150
+    signature_section_height = 110
+    can.setFont("Helvetica-Bold", 12)
+
+    if booking.status in ["Approved by JA (HM)", "Approved by Assistant Registrar (HM)", "Approved"]:
+        ja_hm = Admin.query.filter_by(designation="JA (HM)").first()
+        if ja_hm and ja_hm.signature:
+            can.drawImage(ImageReader(BytesIO(ja_hm.signature)), 470, y_position - 10, width=50, height=30)
+
+    if booking.status in ["Approved by Assistant Registrar (HM)", "Approved"]:
+        ar_hm = Admin.query.filter_by(designation="Assistant Registrar (HM)").first()
+        if ar_hm and ar_hm.signature:
+            can.drawImage(ImageReader(BytesIO(ar_hm.signature)), 100, y_position - 10 - 70, width=50, height=30)
+
+    if booking.status == "Approved":
+        # Step 1: Retrieve the Chief Warden's entry from the Warden table
+        chief_warden_entry = Warden.query.filter_by(is_chief=1).first()
+
+        # Step 2: Use the faculty_id from the Warden table to find the corresponding Faculty entry
+        if chief_warden_entry:
+            chief_warden = Faculty.query.filter_by(faculty_id=chief_warden_entry.faculty_id).first()
+
+            # Step 3: Check if the Chief Warden exists and has a signature
+            if chief_warden and chief_warden.signature:
+                can.drawImage(ImageReader(BytesIO(chief_warden.signature)), 470, y_position - 10-70, width=50, height=30)
+                
+    can.save()
+    packet.seek(0)
+
+    reader = PdfReader(template_path)
+    writer = PdfWriter()
+    overlay = PdfReader(packet)
+
+    # Merge the overlay only with the first page of the template
+    if len(reader.pages) > 0:
+        first_page = reader.pages[0]
+        first_page.merge_page(overlay.pages[0])
+        writer.add_page(first_page)
+
+    # Add the remaining pages of the template without modification
+    for page in reader.pages[1:]:
+        writer.add_page(page)
+
+    output = BytesIO()
+    writer.write(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype="application/pdf",
+        download_name="guest_room_booking_filled.pdf",
+        as_attachment=False  # This ensures the PDF is displayed inline
+    )
+
+@student_bp.route("/student/status", methods=["GET"])
+def status():
     if 'user_id' not in session or session.get('user_role') != 'student':
         return redirect(url_for('auth.login'))
 
     user_id = session['user_id']
-    booking = GuestRoomBooking.query.filter_by(applicant_id=user_id, status='Approved').first()
-    if not booking:
-        flash("No approved guest room booking found.", "danger")
-        return redirect(url_for('student.profile'))
+    internship_application = InternshipApplication.query.filter_by(id=user_id).first()
+    guest_room_bookings = GuestRoomBooking.query.filter_by(applicant_id=user_id).all()
 
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-
-    # Document margins
-    margin = 50
-    content_width = width - (2 * margin)
-
-    # Title
-    c.setFont("Helvetica-Bold", 22)
-    c.setFillColor(colors.darkblue)
-    c.drawCentredString(width / 2, height - 70, "Guest Room Booking Approval")
-
-    # Booking details
-    y_position = height - 140
-    field_spacing = 20
-    c.setFont("Helvetica", 12)
-    c.setFillColor(colors.black)
-
-    booking_details = [
-        ("Applicant Name:", booking.applicant.name),
-        ("Total Guests:", booking.total_guests),
-        ("Male Guests:", booking.guests_male),
-        ("Female Guests:", booking.guests_female),
-        ("Guest Names:", booking.guest_names),
-        ("Relation with Applicant:", booking.relation_with_applicant),
-        ("Guest Address:", booking.guest_address),
-        ("Guest Contact:", booking.guest_contact),
-        ("Guest Email:", booking.guest_email),
-        ("Purpose of Visit:", booking.purpose_of_visit),
-        ("Room Category:", booking.room_category),
-        ("Date of Arrival:", booking.date_arrival),
-        ("Time of Arrival:", booking.time_arrival),
-        ("Date of Departure:", booking.date_departure),
-        ("Time of Departure:", booking.time_departure),
-        ("Accommodation By:", booking.accommodation_by),
-        ("Remarks:", booking.remarks),
-        ("Status:", booking.status),
-        ("Hostel:", booking.hostel.hostel_name if booking.hostel else "N/A")
-    ]
-
-    for label, value in booking_details:
-        c.drawString(margin, y_position, f"{label} {value}")
-        y_position -= field_spacing
-
-    # Signatures Section
-    y_position -= 40
-    c.setFillColor(colors.darkblue)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(margin, y_position, "Signatures")
-    y_position -= 25
-
-    signature_section_height = 110
-    c.setStrokeColor(colors.gray)
-    c.roundRect(margin, y_position - signature_section_height + 10, content_width, signature_section_height, 10, stroke=True, fill=False)
-
-    # Signature boxes
-    signature_width = content_width / 3
-    signature_box_height = 70
-    signature_boxes = [
-        (margin + signature_width * 0 + 10, "JA (HM) Signature"),
-        (margin + signature_width * 1 + 10, "Assistant Registrar (HM) Signature"),
-        (margin + signature_width * 2 + 10, "Chief Warden Signature")
-    ]
-
-    signature_data = [
-        Admin.query.filter_by(designation='JA (HM)').first(),
-        Admin.query.filter_by(designation='Assistant Registrar (HM)').first(),
-        Faculty.query.join(Warden).filter(Warden.is_chief == True, Warden.hostel_no == booking.hostel_no).first() if booking.hostel_no else None
-    ]
-
-    for (box_x, label), signature in zip(signature_boxes, signature_data):
-        c.setStrokeColor(colors.gray)
-        c.roundRect(box_x, y_position - 80, signature_width - 20, signature_box_height, 5, stroke=True, fill=False)
-
-        if signature and signature.signature:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                tmpfile.write(signature.signature)
-                tmpfile.flush()
-                tmpfile.close()  # Ensure the file is closed before deletion
-                c.drawImage(tmpfile.name, box_x + 10, y_position - 70, width=signature_width - 40, height=50)
-                os.unlink(tmpfile.name)
-
-        c.setFillColor(colors.darkblue)
-        c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(box_x + (signature_width - 20) / 2, y_position - 90, label)
-
-    # Footer
-    footer_y = 40
-    c.setFillColorRGB(0.95, 0.95, 0.98)
-    c.rect(margin, footer_y - 20, content_width, 30, fill=True, stroke=False)
-
-    c.setFont("Helvetica-Oblique", 9)
-    c.setFillColor(colors.gray)
-    c.drawString(margin + 10, footer_y, "Generated by Hostel Management System")
-    c.drawRightString(width - margin - 10, footer_y, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(width / 2, footer_y, f"Booking ID: {booking.id} | Page 1 of 1")
-
-    c.save()
-    buffer.seek(0)
-
-    return send_file(buffer, as_attachment=True, download_name=f'guest_room_booking_{booking.id}.pdf', mimetype='application/pdf')
+    return render_template(
+        "student/status.html",
+        internship_application=internship_application,
+        guest_room_bookings=guest_room_bookings
+    )
