@@ -1,0 +1,102 @@
+{% extends "faculty/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between">
+        <h2>Batch Allocation</h2>
+        <button id="saveBtn" class="btn btn-primary">Save Allocations</button>
+    </div>
+
+    <!-- Main Layout: Batches (Left), Hostels (Right) -->
+    <div class="d-flex mt-4 justify-content-between">
+        <!-- Batches Display (Left) -->
+        <div class="w-50" id="batches">
+            <h4>Batches</h4>
+            <div class="d-flex flex-wrap">
+                {% for batch in batches %}
+                <div class="batch shadow-sm p-2 m-2 bg-primary text-white rounded text-center"
+                     draggable="true" id="batch-{{ batch.id }}" data-batch-id="{{ batch.id }}"
+                     data-unallocated="{{ batch.unallocated_students }}">
+                    {{ batch.batch_no }} <br> Unallocated: {{ batch.unallocated_students }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Hostels Display (Right) -->
+        <div class="w-50" id="hostels">
+            <h4 class="text-end">Hostels</h4>
+            <div class="d-flex flex-column align-items-end">
+                {% for hostel in hostels %}
+                <div class="hostel shadow-sm p-2 m-2 bg-success text-white rounded text-center"
+                     id="hostel-{{ hostel.id }}" data-hostel-id="{{ hostel.id }}"
+                     data-vacancies="{{ hostel.vacant_capacity }}">
+                    {{ hostel.hostel_name }} <br> Vacancies: {{ hostel.vacant_capacity }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .batch, .hostel {
+        cursor: grab;
+        width: 150px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
+
+<script>
+    let allocations = [];
+
+    document.querySelectorAll(".batch").forEach(batch => {
+        batch.addEventListener("dragstart", (event) => {
+            event.dataTransfer.setData("batchId", batch.dataset.batchId);
+            event.dataTransfer.setData("unallocated", batch.dataset.unallocated);
+        });
+    });
+
+    document.querySelectorAll(".hostel").forEach(hostel => {
+        hostel.addEventListener("dragover", (event) => {
+            event.preventDefault();
+        });
+
+        hostel.addEventListener("drop", (event) => {
+            event.preventDefault();
+            let batchId = event.dataTransfer.getData("batchId");
+            let unallocated = parseInt(event.dataTransfer.getData("unallocated"));
+            let hostelId = hostel.dataset.hostelId;
+            let vacancies = parseInt(hostel.dataset.vacancies);
+
+            let numStudents = prompt(`Enter number of students to allocate (Max ${Math.min(unallocated, vacancies)}):`);
+            numStudents = parseInt(numStudents);
+
+            if (numStudents > 0 && numStudents <= Math.min(unallocated, vacancies)) {
+                allocations.push({ batchId, hostelId, numStudents });
+                alert(`Allocated ${numStudents} students successfully!`);
+
+                // Update the frontend values
+                unallocated -= numStudents;
+                vacancies -= numStudents;
+                document.getElementById(`batch-${batchId}`).dataset.unallocated = unallocated;
+                document.getElementById(`batch-${batchId}`).innerHTML = `${document.getElementById(`batch-${batchId}`).innerHTML.split('<br>')[0]} <br> Unallocated: ${unallocated}`;
+                hostel.dataset.vacancies = vacancies;
+                hostel.innerHTML = `${hostel.innerHTML.split('<br>')[0]} <br> Vacancies: ${vacancies}`;
+            } else {
+                alert("Invalid allocation! Ensure the number is within constraints.");
+            }
+        });
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", function () {
+        fetch("/faculty/save_batch_allocation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ allocations })
+        }).then(response => response.json())
+          .then(data => alert(data.message));
+    });
+</script>
+{% endblock %}

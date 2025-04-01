@@ -1,0 +1,49 @@
+{% extends "faculty/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg p-4">
+        <h2 class="text-center mb-4">Batch Allocation</h2>
+        
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle text-center">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-uppercase">Batch</th>
+                        {% for hostel in hostels %}
+                        <th class="text-uppercase">{{ hostel.hostel_name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in batches %}
+                    <tr>
+                        <td class="fw-bold">{{ batch.batch_no }}</td>
+                        {% for hostel in hostels %}
+                        <td>
+                            {{ allocation_data[batch.batch_no][hostel.hostel_no] if allocation_data[batch.batch_no][hostel.hostel_no] else '-' }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 15px;
+        background: #ffffff;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+        padding: 12px;
+        vertical-align: middle;
+    }
+    tbody tr:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,130 @@
+<style>
+    .sidebar {
+        width: 260px;
+        background-color: #2e7d32; /* Primary green */
+        color: #f0fdf4;
+        position: fixed;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        box-shadow: 4px 0 10px rgba(0, 0, 0, 0.15);
+        font-family: 'Segoe UI', sans-serif;
+        overflow: hidden;
+        transition: width 0.3s ease;
+        z-index: 10;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
+    }
+
+    .toggle-btn {
+        background-color: #1b5e20;
+        color: white;
+        border: none;
+        padding: 12px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: background-color 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #43a047;
+    }
+
+    .sidebar-content {
+        overflow-y: auto;
+        width: 100%;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        padding-top: 10px;
+    }
+
+    .sidebar a {
+        text-decoration: none;
+        font-size: 1.05rem;
+        color: #f0fdf4;
+        margin: 6px auto;
+        padding: 12px 20px;
+        width: 90%;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .sidebar a span {
+        flex-grow: 1;
+        text-align: left;
+    }
+
+    .sidebar a:hover {
+        background-color: #4caf50;
+        color: #ffffff;
+        transform: translateX(3px);
+    }
+
+    .sidebar a:active {
+        background-color: #2e7d32;
+        color: #ffffff;
+    }
+
+    /* Collapsed view: show only toggle */
+    .sidebar.collapsed .sidebar-content,
+    .sidebar.collapsed h3 {
+        display: none;
+    }
+
+    .main-content {
+        margin-left: 260px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        min-height: 100vh;
+        transition: margin-left 0.3s ease;
+    }
+
+    .main-content.collapsed {
+        margin-left: 70px;
+    }
+
+    .header-content {
+        margin-left: 260px;
+        background-color: #f8f9fa;
+        transition: margin-left 0.3s ease;
+    }
+
+    .header-content.collapsed {
+        margin-left: 70px;
+    }
+</style>
+
+<div class="sidebar" id="sidebar">
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar-content">
+        <a href="/caretaker"><span>Manage Profile</span></a>
+        <a href="/caretaker/pending_approvals"><span>Pending Approvals</span></a>
+        <a href="/caretaker/rooms"><span>All Rooms</span></a>
+        <a href="/caretaker/vacant_rooms"><span>Vacant Rooms</span></a>
+        <a href="{{ url_for('caretaker.room_change_requests') }}"><span>Room Change Requests</span></a>
+        <a href="/logout"><span>Logout</span></a>
+    </div>
+</div>
+
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
+        sidebar.classList.toggle('collapsed');
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed');
+        }
+        if (headerContent) {
+            headerContent.classList.toggle('collapsed');
+        }
+    }
+</script>

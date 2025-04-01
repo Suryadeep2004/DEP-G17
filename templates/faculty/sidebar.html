@@ -1,0 +1,113 @@
+<style>
+    .sidebar {
+        width: 260px;
+        background-color: #8b1d26; /* Maroon base */
+        color: #ffffff;
+        position: fixed;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        box-shadow: 4px 0 10px rgba(0, 0, 0, 0.15);
+        font-family: 'Segoe UI', sans-serif;
+        overflow: hidden;
+        transition: width 0.3s ease;
+        z-index: 10;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
+    }
+
+    .toggle-btn {
+        background-color: #66151d;
+        color: #ffffff;
+        border: none;
+        padding: 12px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: background-color 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #9a2a35;
+    }
+
+    .sidebar-content {
+        overflow-y: auto;
+        width: 100%;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        padding-top: 10px;
+    }
+
+    .sidebar a {
+        text-decoration: none;
+        font-size: 1.05rem;
+        color: #ecf0f1;
+        margin: 6px auto;
+        padding: 12px 20px;
+        width: 90%;
+        border-radius: 8px;
+        display: flex;
+        justify-content: center;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .sidebar a span {
+        flex-grow: 1;
+        text-align: left;
+    }
+
+    .sidebar a:hover {
+        background-color: #b02a37;
+        color: #ffffff;
+        transform: translateX(3px);
+    }
+
+    .sidebar a:active {
+        background-color: #781b24;
+        color: #ffffff;
+    }
+
+    /* Collapsed view: hide content except toggle */
+    .sidebar.collapsed .sidebar-content,
+    .sidebar.collapsed h3 {
+        display: none;
+    }
+</style>
+
+<div class="sidebar" id="sidebar">
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar-content">
+        <a href="/faculty"><span>Manage Profile</span></a>
+        <a href="/faculty/pending_approvals"><span>Pending Approvals</span></a>
+        {% if session.get('user_role') == 'faculty' and session.get('is_hod') %}
+        <a href="/faculty/hod_pending_approvals"><span>HOD Pending Approvals</span></a>
+        {% endif %}
+        {% if session.get('user_role') == 'faculty' and session.get('is_chief_warden') %}
+        <a href="/faculty/guest_room_booking_approvals"><span>Guest Room Booking Approvals</span></a>
+        <a href="/faculty/batch_allocation"><span>Batch Allocation</span></a>
+        <a href="/faculty/allocate_batch_sandbox"><span>Allocate Batch in Sandbox</span></a>
+        {% endif %}
+        <a href="/logout"><span>Logout</span></a>
+    </div>
+</div>
+
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
+        sidebar.classList.toggle('collapsed');
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed');
+        }
+        if (headerContent) {
+            headerContent.classList.toggle('collapsed');
+        }
+    }
+</script>

@@ -1,0 +1,43 @@
+{% extends "caretaker/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Room Change Requests</h2>
+    <div class="table-responsive">
+        <table class="table table-hover table-striped align-middle text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Student Name</th>
+                    <th>Current Room</th>
+                    <th>Reason</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>New Room No</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in room_change_requests %}
+                <tr>
+                    <td>{{ request.student.user.name }}</td>
+                    <td>{{ request.student.student_room_no }}</td>
+                    <td>{{ request.reason }}</td>
+                    <td>{{ request.description }}</td>
+                    <td>{{ request.status }}</td>
+                    <td>{{ request.new_room_no }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('caretaker.handle_room_change', request_id=request.id) }}">
+                            <input type="text" name="new_room_no" class="form-control mb-2" placeholder="Enter New Room No">
+                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Approve</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm mb-2">Reject</button>
+                            <input type="email" name="swap_student_email" class="form-control mb-2" placeholder="Enter Swap Student Email">
+                            <button type="submit" name="action" value="swap" class="btn btn-warning btn-sm">Swap</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
