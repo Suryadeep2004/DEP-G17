@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking
+from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden
 import csv
 import io
 from io import BytesIO
@@ -638,4 +638,16 @@ def admin_view_guest_room_booking_pdf(booking_id):
         mimetype="application/pdf",
         download_name="guest_room_booking_filled.pdf",
         as_attachment=False  # This ensures the PDF is displayed inline
+    )
+
+@admin_bp.route("/admin/guest_room_booking_status", methods=["GET"])
+def guest_room_booking_status():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    bookings = GuestRoomBooking.query.all()
+
+    return render_template(
+        "admin/guest_room_booking_status.html",
+        bookings=bookings
     )
