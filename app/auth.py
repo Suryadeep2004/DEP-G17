@@ -52,7 +52,9 @@ def login():
                 session['is_chief_warden'] = warden.is_chief if warden else False
                 return redirect(url_for("faculty.profile"))
             elif Admin.query.filter_by(admin_id=user.id).first():
+                admin = Admin.query.filter_by(admin_id=user.id).first()
                 session['user_role'] = 'admin'
+                session['designation'] = admin.designation 
                 return redirect(url_for("admin.profile"))
             
             flash("Login successful!", "success")

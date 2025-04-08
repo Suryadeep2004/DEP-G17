@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import Student, CustomUser, Caretaker, InternshipApplication, Room, Hostel, db, RoomChangeRequest, Faculty, Admin
+from app.models import Student, CustomUser, Caretaker, InternshipApplication, Room, Hostel, db, RoomChangeRequest, Faculty, Admin, ProjectAccommodationRequest
 from flask_mail import Message
 from app import mail
 import os
@@ -321,3 +321,68 @@ def handle_room_change(request_id):
         flash("Room change request not found.", "danger")
 
     return redirect(url_for('caretaker.room_change_requests'))
+
+@caretaker_bp.route("/caretaker/project_requests", methods=["GET", "POST"])
+def project_requests():
+    if 'user_id' not in session or session.get('user_role') != 'caretaker':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    caretaker = Caretaker.query.filter_by(user_id=user_id).first()
+
+    if not caretaker:
+        flash("Access denied. Only Caretakers can access this page.", "danger")
+        return redirect(url_for('auth.login'))
+
+    # Fetch all requests assigned to the caretaker's hostel
+    pending_requests = ProjectAccommodationRequest.query.filter_by(
+        hostel_allotted=caretaker.hostel_no, status="Pending approval from Caretaker"
+    ).all()
+
+    return render_template(
+        "caretaker/project_requests.html",
+        pending_requests=pending_requests
+    )
+
+@caretaker_bp.route("/caretaker/handle_project_request/<int:request_id>", methods=["POST"])
+def handle_project_request(request_id):
+    if 'user_id' not in session or session.get('user_role') != 'caretaker':
+        return redirect(url_for('auth.login'))
+
+    action = request.form.get('action')
+    room_no = request.form.get('room_no')
+    request_entry = ProjectAccommodationRequest.query.get(request_id)
+
+    if not request_entry:
+        flash("Request not found.", "danger")
+        return redirect(url_for('caretaker.project_requests'))
+
+    if action == "approve":
+        # Check if the room exists and has available capacity
+        room = Room.query.filter_by(room_no=room_no, hostel_no=request_entry.hostel_allotted).first()
+        if not room:
+            flash("Invalid room number or room does not belong to the assigned hostel.", "danger")
+            return redirect(url_for('caretaker.project_requests'))
+
+        if room.current_occupancy >= room.room_occupancy:
+            flash("Room is already full.", "danger")
+            return redirect(url_for('caretaker.project_requests'))
+
+        # Allocate the room to the student
+        student = Student.query.filter_by(student_id=request_entry.applicant_id).first()
+        if not student:
+            flash("Student not found.", "danger")
+            return redirect(url_for('caretaker.project_requests'))
+
+        student.student_room_no = room_no
+        room.current_occupancy += 1
+        request_entry.status = "Approved by Caretaker"
+
+        db.session.commit()
+        flash(f"Request approved and room {room_no} allocated to the student.", "success")
+    elif action == "reject":
+        request_entry.status = "Rejected by Caretaker"
+        db.session.commit()
+        flash("Request rejected successfully.", "danger")
+
+    return redirect(url_for('caretaker.project_requests'))

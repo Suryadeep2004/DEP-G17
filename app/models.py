@@ -184,3 +184,26 @@ class GuestRoomBooking(db.Model):
 
     applicant = db.relationship('CustomUser', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
     hostel = db.relationship('Hostel', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
+
+class ProjectAccommodationRequest(db.Model):
+    __tablename__ = 'project_accommodation_request'
+    id = db.Column(db.Integer, primary_key=True)
+    applicant_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), nullable=False)
+    faculty_id = db.Column(db.Integer, db.ForeignKey('faculty.faculty_id', ondelete='SET NULL'))
+    address = db.Column(db.Text, nullable=False)
+    stay_from = db.Column(db.Date, nullable=False)
+    stay_to = db.Column(db.Date, nullable=False)
+    category = db.Column(db.String(1), nullable=False)  # 'A' or 'B'
+    arrival_date = db.Column(db.Date, nullable=False)
+    arrival_time = db.Column(db.Time, nullable=False)
+    departure_date = db.Column(db.Date, nullable=False)
+    departure_time = db.Column(db.Time, nullable=False)
+    offer_letter_path = db.Column(db.String(200))
+    id_proof_path = db.Column(db.String(200))
+    remarks = db.Column(db.Text)
+    hostel_allotted = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='SET NULL'))
+    status = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    
+    applicant = db.relationship('CustomUser', backref=db.backref('project_accommodation_requests', cascade='all, delete-orphan'))
+    hostel = db.relationship('Hostel', backref=db.backref('project_accommodation_requests', cascade='all, delete-orphan'))

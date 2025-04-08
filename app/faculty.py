@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify, send_file
-from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel, Student
+from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel, Student, ProjectAccommodationRequest
 from app.database import db
 from flask_mail import Message
 from app import mail 
@@ -634,3 +634,174 @@ def faculty_view_guest_room_booking_pdf(booking_id):
         download_name="guest_room_booking_filled.pdf",
         as_attachment=False  # This ensures the PDF is displayed inline
     )
+
+@faculty_bp.route("/faculty/pending_project_accommodation_requests", methods=["GET", "POST"])
+def pending_project_accommodation_requests():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+
+    if not faculty:
+        flash("Faculty not found.", "danger")
+        return redirect(url_for('auth.login'))
+
+    # Fetch all pending requests assigned to this faculty
+    pending_requests = ProjectAccommodationRequest.query.filter_by(
+        faculty_id=faculty.faculty_id, status="Pending approval from Faculty"
+    ).all()
+
+    return render_template(
+        "faculty/pending_project_accommodation_requests.html",
+        pending_requests=pending_requests
+    )
+
+@faculty_bp.route("/faculty/handle_project_accommodation_request/<int:request_id>", methods=["POST"])
+def handle_project_accommodation_request(request_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+
+    if not faculty:
+        flash("Faculty not found.", "danger")
+        return redirect(url_for('faculty.pending_project_accommodation_requests'))
+
+    action = request.form.get('action')
+    request_entry = ProjectAccommodationRequest.query.get(request_id)
+
+    if not request_entry:
+        flash("Request not found.", "danger")
+        return redirect(url_for('faculty.pending_project_accommodation_requests'))
+
+    if action == "approve":
+        request_entry.status = "Pending approval from HOD"
+        flash("Request approved and forwarded to HOD.", "success")
+    elif action == "reject":
+        request_entry.status = "Rejected by Faculty"
+        flash("Request rejected.", "danger")
+
+    db.session.commit()
+    return redirect(url_for('faculty.pending_project_accommodation_requests'))
+
+@faculty_bp.route("/faculty/hod_pending_project_requests", methods=["GET", "POST"])
+def hod_pending_project_requests():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+
+    if not faculty or not faculty.is_hod:
+        flash("Access denied. Only HODs can access this page.", "danger")
+        return redirect(url_for('auth.login'))
+
+    # Fetch all requests pending approval from HOD
+    pending_requests = ProjectAccommodationRequest.query.filter_by(
+        status="Pending approval from HOD"
+    ).all()
+
+    return render_template(
+        "faculty/hod_pending_project_requests.html",
+        pending_requests=pending_requests
+    )
+
+@faculty_bp.route("/faculty/hod_handle_project_request/<int:request_id>", methods=["POST"])
+def hod_handle_project_request(request_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+
+    if not faculty or not faculty.is_hod:
+        flash("Access denied. Only HODs can perform this action.", "danger")
+        return redirect(url_for('auth.login'))
+
+    action = request.form.get('action')
+    request_entry = ProjectAccommodationRequest.query.get(request_id)
+
+    if not request_entry:
+        flash("Request not found.", "danger")
+        return redirect(url_for('faculty.hod_pending_project_requests'))
+
+    if action == "approve":
+        request_entry.status = "Pending approval from AR (HM)"
+        flash("Request approved and forwarded to AR (HM).", "success")
+    elif action == "reject":
+        request_entry.status = "Rejected by HOD"
+        flash("Request rejected by HOD.", "danger")
+
+    db.session.commit()
+    return redirect(url_for('faculty.hod_pending_project_requests'))
+
+@faculty_bp.route("/faculty/chief_warden_pending_requests", methods=["GET", "POST"])
+def chief_warden_pending_requests():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+    warden = Warden.query.filter_by(faculty_id=user_id, is_chief=True).first()
+
+    if not faculty or not warden:
+        flash("Access denied. Only Chief Warden can access this page.", "danger")
+        return redirect(url_for('auth.login'))
+
+    # Fetch all requests pending approval from Chief Warden
+    pending_requests = ProjectAccommodationRequest.query.filter_by(
+        status="Pending approval from Chief Warden"
+    ).all()
+
+    # Fetch all hostels
+    hostels = Hostel.query.all()
+
+    return render_template(
+        "faculty/chief_warden_pending_requests.html",
+        pending_requests=pending_requests,
+        hostels=hostels
+    )
+
+@faculty_bp.route("/faculty/chief_warden_handle_request/<int:request_id>", methods=["POST"])
+def chief_warden_handle_request(request_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+    warden = Warden.query.filter_by(faculty_id=user_id, is_chief=True).first()
+
+    if not faculty or not warden:
+        flash("Access denied. Only Chief Warden can perform this action.", "danger")
+        return redirect(url_for('auth.login'))
+
+    action = request.form.get('action')
+    request_entry = ProjectAccommodationRequest.query.get(request_id)
+
+    if not request_entry:
+        flash("Request not found.", "danger")
+        return redirect(url_for('faculty.chief_warden_pending_requests'))
+
+    if action == "approve":
+        # Assign a hostel
+        hostel_no = request.form.get('hostel_no')
+        hostel = Hostel.query.filter_by(hostel_no=hostel_no).first()
+
+        if not hostel:
+            flash("Invalid hostel selected.", "danger")
+            return redirect(url_for('faculty.chief_warden_pending_requests'))
+
+        # Update the request status and assign the hostel
+        request_entry.status = "Pending approval from Caretaker"
+        request_entry.hostel_allotted = hostel_no
+        db.session.commit()
+
+        flash(f"Request approved and forwarded to the caretaker of {hostel.hostel_name}.", "success")
+    elif action == "reject":
+        request_entry.status = "Rejected by Chief Warden"
+        db.session.commit()
+        flash("Request rejected by Chief Warden.", "danger")
+
+    return redirect(url_for('faculty.chief_warden_pending_requests'))

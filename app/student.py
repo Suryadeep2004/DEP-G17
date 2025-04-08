@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file, send_from_directory
-from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest, GuestRoomBooking, Warden
+from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest, GuestRoomBooking, Warden, ProjectAccommodationRequest
 from werkzeug.utils import secure_filename
 from flask_mail import Message
 from app import mail  
@@ -709,3 +709,86 @@ def internship_form_status():
         "student/internship_form_status.html",
         internship_applications=internship_applications
     )
+
+@student_bp.route("/student/project_accommodation_request_form", methods=["GET"])
+def project_accommodation_request_form():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    return render_template("student/project_accommodation_request_form.html")
+
+@student_bp.route("/student/submit_project_accommodation_request", methods=["POST"])
+def submit_project_accommodation_request():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    faculty_email = request.form.get('faculty_email')
+    address = request.form.get('address')
+    stay_from = request.form.get('stay_from')
+    stay_to = request.form.get('stay_to')
+    category = request.form.get('category')
+    arrival_date = request.form.get('arrival_date')
+    arrival_time = request.form.get('arrival_time')
+    departure_date = request.form.get('departure_date')
+    departure_time = request.form.get('departure_time')
+    remarks = request.form.get('remarks')
+
+    # Convert date strings to Python date objects
+    stay_from = datetime.strptime(stay_from, '%Y-%m-%d').date()
+    stay_to = datetime.strptime(stay_to, '%Y-%m-%d').date()
+    arrival_date = datetime.strptime(arrival_date, '%Y-%m-%d').date()
+    departure_date = datetime.strptime(departure_date, '%Y-%m-%d').date()
+
+    # Convert time strings to Python time objects
+    arrival_time = datetime.strptime(arrival_time, '%H:%M').time()
+    departure_time = datetime.strptime(departure_time, '%H:%M').time()
+
+    # Handle file uploads
+    offer_letter = request.files['offer_letter']
+    id_proof = request.files['id_proof']
+
+    uploads_dir = os.path.join(os.getcwd(), 'uploads')
+    if not os.path.exists(uploads_dir):
+        os.makedirs(uploads_dir)
+
+    offer_letter_path = os.path.join(uploads_dir, secure_filename(offer_letter.filename))
+    id_proof_path = os.path.join(uploads_dir, secure_filename(id_proof.filename))
+
+    offer_letter.save(offer_letter_path)
+    id_proof.save(id_proof_path)
+
+    # Resolve faculty_id from faculty_email using CustomUser
+    faculty_user = CustomUser.query.filter_by(email=faculty_email).first()
+    if not faculty_user:
+        flash("Faculty with the provided email does not exist.", "danger")
+        return redirect(url_for('student.project_accommodation_request_form'))
+
+    faculty = Faculty.query.filter_by(faculty_id=faculty_user.id).first()
+    if not faculty:
+        flash("The provided email does not belong to a faculty member.", "danger")
+        return redirect(url_for('student.project_accommodation_request_form'))
+
+    # Create a new ProjectAccommodationRequest entry
+    request_entry = ProjectAccommodationRequest(
+        applicant_id=user_id,
+        faculty_id=faculty.faculty_id,
+        address=address,
+        stay_from=stay_from,
+        stay_to=stay_to,
+        category=category,
+        arrival_date=arrival_date,
+        arrival_time=arrival_time,
+        departure_date=departure_date,
+        departure_time=departure_time,
+        offer_letter_path=offer_letter_path,
+        id_proof_path=id_proof_path,
+        remarks=remarks,
+        status="Pending approval from Faculty"
+    )
+
+    db.session.add(request_entry)
+    db.session.commit()
+
+    flash("Project Accommodation Request submitted successfully.", "success")
+    return redirect(url_for('student.profile'))

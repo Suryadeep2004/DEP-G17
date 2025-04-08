@@ -1,0 +1,50 @@
+{% extends "faculty/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Chief Warden Pending Project Accommodation Requests</h2>
+
+    {% if pending_requests %}
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Applicant Name</th>
+                        <th>Address</th>
+                        <th>Stay From</th>
+                        <th>Stay To</th>
+                        <th>Remarks</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in pending_requests %}
+                    <tr>
+                        <td>{{ request.id }}</td>
+                        <td>{{ request.applicant.name }}</td>
+                        <td>{{ request.address }}</td>
+                        <td>{{ request.stay_from }}</td>
+                        <td>{{ request.stay_to }}</td>
+                        <td>{{ request.remarks or 'N/A' }}</td>
+                        <td class="text-center">
+                            <form method="POST" action="{{ url_for('faculty.chief_warden_handle_request', request_id=request.id) }}">
+                                <select name="hostel_no" class="form-select mb-2" required>
+                                    {% for hostel in hostels %}
+                                    <option value="{{ hostel.hostel_no }}">{{ hostel.hostel_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm me-1">Approve</button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">Reject</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No pending project accommodation requests found.</p>
+    {% endif %}
+</div>
+{% endblock %}

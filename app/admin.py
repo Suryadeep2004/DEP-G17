@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden
+from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel
 import csv
 import io
 from io import BytesIO
@@ -651,3 +651,54 @@ def guest_room_booking_status():
         "admin/guest_room_booking_status.html",
         bookings=bookings
     )
+
+@admin_bp.route("/admin/ar_pending_project_requests", methods=["GET", "POST"])
+def ar_pending_project_requests():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin or admin.designation != "Assistant Registrar (HM)":
+        flash("Access denied. Only Assistant Registrar (HM) can access this page.", "danger")
+        return redirect(url_for('auth.login'))
+
+    # Fetch all requests pending approval from Assistant Registrar (HM)
+    pending_requests = ProjectAccommodationRequest.query.filter_by(
+        status="Pending approval from AR (HM)"
+    ).all()
+
+    return render_template(
+        "admin/ar_pending_project_requests.html",
+        pending_requests=pending_requests
+    )
+
+@admin_bp.route("/admin/ar_handle_project_request/<int:request_id>", methods=["POST"])
+def ar_handle_project_request(request_id):
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin or admin.designation != "Assistant Registrar (HM)":
+        flash("Access denied. Only Assistant Registrar (HM) can perform this action.", "danger")
+        return redirect(url_for('auth.login'))
+
+    action = request.form.get('action')
+    request_entry = ProjectAccommodationRequest.query.get(request_id)
+
+    if not request_entry:
+        flash("Request not found.", "danger")
+        return redirect(url_for('admin.ar_pending_project_requests'))
+
+    if action == "approve":
+        request_entry.status = "Pending approval from Chief Warden"
+        flash("Request approved and forwarded to Chief Warden.", "success")
+    elif action == "reject":
+        request_entry.status = "Rejected by Assistant Registrar (HM)"
+        flash("Request rejected by Assistant Registrar (HM).", "danger")
+
+    db.session.commit()
+    return redirect(url_for('admin.ar_pending_project_requests'))
