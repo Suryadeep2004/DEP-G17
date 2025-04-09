@@ -792,3 +792,20 @@ def submit_project_accommodation_request():
 
     flash("Project Accommodation Request submitted successfully.", "success")
     return redirect(url_for('student.profile'))
+
+@student_bp.route("/student/project_accommodation_status", methods=["GET"])
+def project_accommodation_status():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    # Fetch all project accommodation requests submitted by the student
+    project_requests = ProjectAccommodationRequest.query.filter_by(applicant_id=user_id).all()
+
+    if not project_requests:
+        flash("No project accommodation requests found.", "info")
+
+    return render_template(
+        "student/project_accommodation_status.html",
+        project_requests=project_requests
+    )
