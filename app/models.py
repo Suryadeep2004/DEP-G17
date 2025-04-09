@@ -1,4 +1,5 @@
 from app.database import db
+from datetime import datetime
 
 class CustomUser(db.Model):
     __tablename__ = 'custom_user'
@@ -117,7 +118,8 @@ class InternshipApplication(db.Model):
     faculty_signature_id = db.Column(db.Integer, db.ForeignKey('faculty.faculty_id'))  
     hod_signature_id = db.Column(db.Integer, db.ForeignKey('faculty.faculty_id'))  
     admin_signature_id = db.Column(db.Integer, db.ForeignKey('admin.admin_id'))  
-    approval_date = db.Column(db.DateTime, default=db.func.current_timestamp()) 
+    approval_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class DummyBatch(db.Model):
     __tablename__ = 'dummy_batch'
@@ -203,7 +205,7 @@ class ProjectAccommodationRequest(db.Model):
     remarks = db.Column(db.Text)
     hostel_allotted = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='SET NULL'))
     status = db.Column(db.String(50))
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     applicant = db.relationship('CustomUser', backref=db.backref('project_accommodation_requests', cascade='all, delete-orphan'))
     hostel = db.relationship('Hostel', backref=db.backref('project_accommodation_requests', cascade='all, delete-orphan'))
