@@ -17,7 +17,6 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter
-import tempfile
 from sqlalchemy.sql import func
 
 admin_bp = Blueprint("admin", __name__)

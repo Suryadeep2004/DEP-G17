@@ -1016,3 +1016,17 @@ def view_project_accommodation_pdf(request_id):
         download_name="project_accommodation_request.pdf",
         as_attachment=False  # This ensures the PDF is displayed inline
     )
+
+@student_bp.route("/student/status_dashboard", methods=["GET"])
+def status_dashboard():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    return render_template("student/status_dashboard.html")
+
+@student_bp.route("/student/form_dashboard", methods=["GET"])
+def form_dashboard():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    return render_template("student/form_dashboard.html")
