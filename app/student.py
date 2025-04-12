@@ -15,6 +15,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.units import inch
+from sqlalchemy.sql import func
 
 student_bp = Blueprint("student", __name__)
 
@@ -38,7 +39,10 @@ def internship_form():
     if 'user_id' not in session or session.get('user_role') != 'student':
         return redirect(url_for('auth.login'))
 
-    return render_template("student/internship_form.html")
+    user_id = session['user_id']
+    user = CustomUser.query.get(user_id)  # Fetch the user from the database
+    student = Student.query.filter_by(student_id=user_id).first()  # Fetch the student object
+    return render_template("student/internship_form.html", user=user,student=student)
 
 @student_bp.route("/student/submit_internship_form", methods=["POST"])
 def submit_internship_form():
@@ -399,6 +403,8 @@ def guest_room_booking_form():
 
     return render_template("student/guest_room_booking_form.html")
 
+    return render_template("student/guest_room_booking_form.html")
+
 @student_bp.route("/student/submit_guest_room_booking", methods=["POST"])
 def submit_guest_room_booking():
     if 'user_id' not in session or session.get('user_role') != 'student':
@@ -671,22 +677,40 @@ def view_internship_application_pdf(application_id):
         as_attachment=False  # This ensures the PDF is displayed inline
     )
 
-@student_bp.route("/student/status", methods=["GET"])
+@student_bp.route("/student/status", methods=["GET", "POST"])
 def status():
     if 'user_id' not in session or session.get('user_role') != 'student':
         return redirect(url_for('auth.login'))
 
     user_id = session['user_id']
+    filter_date = request.form.get('filter_date')  # Get the date from the form
+
+    if filter_date:
+        # Convert filter_date to a datetime.date object
+        try:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+        except ValueError:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+            return redirect(url_for('student.status'))
+
+        # Filter guest room bookings by the selected date
+        guest_room_bookings = GuestRoomBooking.query.filter_by(applicant_id=user_id).filter(
+            func.date(GuestRoomBooking.created_at) == filter_date_obj
+        ).all()
+    else:
+        # Fetch all guest room bookings if no date is provided
+        guest_room_bookings = GuestRoomBooking.query.filter_by(applicant_id=user_id).all()
+
     internship_application = InternshipApplication.query.filter_by(id=user_id).first()
-    guest_room_bookings = GuestRoomBooking.query.filter_by(applicant_id=user_id).all()
 
     return render_template(
         "student/status.html",
         internship_application=internship_application,
-        guest_room_bookings=guest_room_bookings
+        guest_room_bookings=guest_room_bookings,
+        filter_date=filter_date
     )
 
-@student_bp.route("/student/internship_form_status", methods=["GET"])
+@student_bp.route("/student/internship_form_status", methods=["GET", "POST"])
 def internship_form_status():
     if 'user_id' not in session or session.get('user_role') != 'student':
         return redirect(url_for('auth.login'))
@@ -698,8 +722,23 @@ def internship_form_status():
         flash("User not found.", "danger")
         return redirect(url_for('auth.login'))
 
-    # Query all internship applications submitted by the student's email
-    internship_applications = InternshipApplication.query.filter_by(email=user.email).all()
+    filter_date = request.form.get('filter_date')  # Get the date from the form
+
+    if filter_date:
+        # Convert filter_date to a datetime.date object
+        try:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+        except ValueError:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+            return redirect(url_for('student.internship_form_status'))
+
+        # Filter internship applications by the selected date
+        internship_applications = InternshipApplication.query.filter_by(email=user.email).filter(
+            func.date(InternshipApplication.created_at) == filter_date_obj
+        ).all()
+    else:
+        # Fetch all internship applications if no date is provided
+        internship_applications = InternshipApplication.query.filter_by(email=user.email).all()
 
     if not internship_applications:
         flash("No internship applications found.", "danger")
@@ -707,8 +746,25 @@ def internship_form_status():
 
     return render_template(
         "student/internship_form_status.html",
-        internship_applications=internship_applications
+        internship_applications=internship_applications,
+        filter_date=filter_date
     )
+
+@student_bp.route("/student/validate_faculty", methods=["POST"])
+def validate_faculty():
+    faculty_name = request.json.get('faculty_name')
+    faculty_email = request.json.get('faculty_email')
+
+    # Query the database to check if the faculty exists with the given name and email
+    faculty = Faculty.query.join(CustomUser).filter(
+        CustomUser.name == faculty_name.lower(),  # Use lower() instead of toLowerCase()
+        CustomUser.email == faculty_email.lower()  # Use lower() instead of toLowerCase()
+    ).first()
+
+    if faculty:
+        return {"valid": True}, 200
+    else:
+        return {"valid": False}, 400
 
 @student_bp.route("/student/project_accommodation_request_form", methods=["GET"])
 def project_accommodation_request_form():

@@ -18,6 +18,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter
 import tempfile
+from sqlalchemy.sql import func
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -640,16 +641,33 @@ def admin_view_guest_room_booking_pdf(booking_id):
         as_attachment=False  # This ensures the PDF is displayed inline
     )
 
-@admin_bp.route("/admin/guest_room_booking_status", methods=["GET"])
+@admin_bp.route("/admin/guest_room_booking_status", methods=["GET", "POST"])
 def guest_room_booking_status():
     if 'user_id' not in session or session.get('user_role') != 'admin':
         return redirect(url_for('auth.login')) 
 
-    bookings = GuestRoomBooking.query.all()
+    filter_date = request.form.get('filter_date')  # Get the date from the form
+
+    if filter_date:
+        # Convert filter_date to a datetime.date object
+        try:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+        except ValueError:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+            return redirect(url_for('admin.guest_room_booking_status'))
+
+        # Filter guest room bookings by the selected date
+        bookings = GuestRoomBooking.query.filter(
+            func.date(GuestRoomBooking.created_at) == filter_date_obj
+        ).all()
+    else:
+        # Fetch all guest room bookings if no date is provided
+        bookings = GuestRoomBooking.query.all()
 
     return render_template(
         "admin/guest_room_booking_status.html",
-        bookings=bookings
+        bookings=bookings,
+        filter_date=filter_date
     )
 
 @admin_bp.route("/admin/ar_pending_project_requests", methods=["GET", "POST"])

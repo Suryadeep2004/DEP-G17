@@ -4,6 +4,21 @@
 <div class="container mt-4">
     <h2>Application Status</h2>
 
+    <!-- Filter Form -->
+    <form method="POST" action="{{ url_for('student.status') }}" class="mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="filter_date" class="form-label">Filter by Date:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="filter_date" name="filter_date" class="form-control" value="{{ filter_date }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </form>
+
     <!-- Guest Room Booking Status -->
     {% if guest_room_bookings %}
         {% for booking in guest_room_bookings %}

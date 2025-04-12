@@ -4,6 +4,21 @@
 <div class="container mt-4">
     <h2>Guest Room Booking Status</h2>
 
+    <!-- Filter Form -->
+    <form method="POST" action="{{ url_for('admin.guest_room_booking_status') }}" class="mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="filter_date" class="form-label">Filter by Date:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="filter_date" name="filter_date" class="form-control" value="{{ filter_date }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </form>
+
     {% if bookings %}
         {% for booking in bookings %}
         <div class="card shadow-sm border-0 mt-4">

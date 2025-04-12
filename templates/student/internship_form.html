@@ -82,4 +82,103 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const nameInput = document.getElementById("name");
+        const emailInput = document.getElementById("email");
+        const phoneInput = document.getElementById("contact_number");
+
+        const profileName = "{{ user.name }}".toLowerCase(); // Pass the user's name from the backend
+        const profileEmail = "{{ user.email }}".toLowerCase(); // Pass the user's email from the backend
+        const profilePhone = "{{ student.student_phone }}"; // Pass the user's phone from the backend
+
+        // Validate Name (case-insensitive)
+        nameInput.addEventListener("input", function () {
+            if (nameInput.value.toLowerCase()=== profileName) {
+                nameInput.classList.remove("is-invalid");
+                nameInput.classList.add("is-valid");
+            } else {
+                nameInput.classList.remove("is-valid");
+                nameInput.classList.add("is-invalid");
+            }
+        });
+
+        // Validate Email
+        emailInput.addEventListener("input", function () {
+            if (emailInput.value.toLowerCase() === profileEmail) {
+                emailInput.classList.remove("is-invalid");
+                emailInput.classList.add("is-valid");
+            } else {
+                emailInput.classList.remove("is-valid");
+                emailInput.classList.add("is-invalid");
+            }
+        });
+
+        // Validate Phone Number
+        phoneInput.addEventListener("input", function () {
+            const phoneRegex = /^\d{10}$/;
+            if (phoneRegex.test(phoneInput.value) && phoneInput.value === profilePhone) {
+                phoneInput.classList.remove("is-invalid");
+                phoneInput.classList.add("is-valid");
+            } else {
+                phoneInput.classList.remove("is-valid");
+                phoneInput.classList.add("is-invalid");
+            }
+        });
+    });
+</script>
+
+<style>
+    .is-valid {
+        border-color: #28a745;
+    }
+
+    .is-invalid {
+        border-color: #dc3545;
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const facultyNameInput = document.getElementById("faculty_mentor");
+        const facultyEmailInput = document.getElementById("faculty_email");
+
+        // Validate Faculty Name and Email
+        function validateFaculty() {
+            const facultyName = facultyNameInput.value.trim().toLowerCase();
+            const facultyEmail = facultyEmailInput.value.trim().toLowerCase();
+
+            if (facultyName && facultyEmail) {
+                fetch("{{ url_for('student.validate_faculty') }}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        faculty_name: facultyName,
+                        faculty_email: facultyEmail,
+                    }),
+                })
+                .then(response => {
+                    if (response.ok) {
+                        facultyNameInput.classList.remove("is-invalid");
+                        facultyNameInput.classList.add("is-valid");
+                        facultyEmailInput.classList.remove("is-invalid");
+                        facultyEmailInput.classList.add("is-valid");
+                    } else {
+                        facultyNameInput.classList.remove("is-valid");
+                        facultyNameInput.classList.add("is-invalid");
+                        facultyEmailInput.classList.remove("is-valid");
+                        facultyEmailInput.classList.add("is-invalid");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error validating faculty:", error);
+                });
+            }
+        }
+
+        facultyNameInput.addEventListener("input", validateFaculty);
+        facultyEmailInput.addEventListener("input", validateFaculty);
+    });
+</script>
 {% endblock %}
