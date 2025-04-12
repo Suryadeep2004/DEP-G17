@@ -386,3 +386,163 @@ def handle_project_request(request_id):
         flash("Request rejected successfully.", "danger")
 
     return redirect(url_for('caretaker.project_requests'))
+
+@caretaker_bp.route("/caretaker/view_project_accommodation_pdf/<int:request_id>", methods=["GET"])
+def view_project_accommodation_pdf(request_id):
+    # Check if the user is logged in and is a caretaker
+    if 'user_id' not in session or session.get('user_role') != 'caretaker':
+        return redirect(url_for('auth.login'))
+
+    # Fetch the logged-in caretaker details
+    user_id = session['user_id']
+    caretaker = Caretaker.query.filter_by(user_id=user_id).first()
+
+    if not caretaker:
+        flash("Access denied. Only caretakers can view this PDF.", "danger")
+        return redirect(url_for('caretaker.project_requests'))
+
+    # Fetch the project accommodation request
+    request = ProjectAccommodationRequest.query.get(request_id)
+    if not request:
+        flash("No project accommodation request found.", "danger")
+        return redirect(url_for('caretaker.project_requests'))
+
+    # Path to the PDF template
+    template_path = "static/pdf formats/Project Staff booking form.pdf"
+    if not os.path.exists(template_path):
+        flash("PDF template not found.", "danger")
+        return redirect(url_for('caretaker.project_requests'))
+
+    # Create a buffer for the overlay
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=letter)
+    can.setFont("Helvetica", 10)
+
+    # Fetch the student's details from the Student model
+    student = request.applicant.student
+    if not student:
+        flash("Student details not found.", "danger")
+        return redirect(url_for('caretaker.project_requests'))
+
+    # Fetch the faculty details
+    faculty = Faculty.query.filter_by(faculty_id=request.faculty_id).first()
+    if not faculty:
+        flash("Faculty details not found.", "danger")
+        return redirect(url_for('caretaker.project_requests'))
+
+    # Fetch the hostel name
+    hostel_name = request.hostel.hostel_name if request.hostel else "N/A"
+
+    # --- Fill Data on PDF ---
+    # Faculty Supervisor Name and Email
+    can.drawString(215, 638, f"{faculty.user.name}")  # Faculty supervisor name
+    faculty_email_without_domain = faculty.user.email.split('@')[0]  # Remove the domain part
+    can.drawString(375, 638, f"{faculty_email_without_domain}")  # Faculty email without domain
+
+    # Applicant Details
+    can.drawString(215, 615, f"{request.applicant.name}")  # Applicant name
+    can.drawString(215, 592, f"{request.applicant.gender}")  # Applicant gender (from CustomUser model)
+    can.drawString(215, 569, f"{student.department}")  # Applicant department
+    can.drawString(215, 535, f"{request.address}")  # Full address of student applicant
+    can.drawString(265, 500, f"{student.student_phone}")  # Student contact
+    can.drawString(439, 500, f"{request.applicant.email}")  # Student email
+
+    # Faculty Contact
+    can.drawString(215, 477, f"{faculty.faculty_phone or 'N/A'}")  # Faculty contact
+
+    # Category of Hostel
+    if request.category == "A":
+        can.drawString(327, 282, "\u2713")  # Tick for Category A
+    elif request.category == "B":
+        can.drawString(390, 282, "\u2713")  # Tick for Category B
+
+    # Date and Time of Arrival and Departure
+    # Extract arrival date components
+    arrival_day = request.arrival_date.strftime('%d')
+    arrival_month = request.arrival_date.strftime('%m')
+    arrival_year = request.arrival_date.strftime('%Y')
+    arrival_time = request.arrival_time.strftime('%H:%M')  # 24-hour format
+
+    # Extract departure date components
+    departure_day = request.departure_date.strftime('%d')
+    departure_month = request.departure_date.strftime('%m')
+    departure_year = request.departure_date.strftime('%Y')
+    departure_time = request.departure_time.strftime('%H:%M')  # 24-hour format
+
+    # Render arrival date components
+    can.drawString(242, 449, f"{arrival_day}")  # Arrival day
+    can.drawString(270, 449, f"{arrival_month}")  # Arrival month
+    can.drawString(315, 449, f"{(int(arrival_year))%100}")  # Arrival year
+    can.drawString(242-100, 248, f"{arrival_day}")  # Arrival day
+    can.drawString(270-100+10, 248, f"{arrival_month}")  # Arrival month
+    can.drawString(315-100+15, 248, f"{(int(arrival_year))%100}")  # Arrival year
+    can.drawString(360, 248, f"{arrival_time}")  # Arrival time
+
+    # Render departure date components
+    can.drawString(350, 449, f"{departure_day}")  # Departure day
+    can.drawString(378, 449, f"{departure_month}")  # Departure month
+    can.drawString(423, 449, f"{(int(departure_year))%100}")  # Departure year
+    can.drawString(142+10, 224, f"{departure_day}")  # Departure day
+    can.drawString(270-100+20, 224, f"{departure_month}")  # Departure month
+    can.drawString(315-100+25, 224, f"{(int(departure_year))%100}")  # Departure year
+    can.drawString(360, 224, f"{departure_time}")  # Departure time
+    
+
+    # Remarks
+    can.drawString(128, 201, f"{request.remarks or 'N/A'}")  # Remarks
+
+    # Hostel Name
+    can.drawString(130, 51, f"{hostel_name}")  # Hostel name
+
+    # Signatures
+    if request.status == "Approved by Caretaker":
+        # Mentor Faculty Signature
+        mentor_signature = faculty.signature
+        if mentor_signature:
+            can.drawImage(ImageReader(BytesIO(mentor_signature)), 460, 145, width=50, height=30)  # Mentor Faculty Signature
+
+        # Fetch HOD signature
+        hod = Faculty.query.filter_by(is_hod=True).first()
+        if hod and hod.signature:
+            can.drawImage(ImageReader(BytesIO(hod.signature)), 100, 99, width=50, height=30)  # HOD Signature
+
+        # Fetch AR (HM) signature
+        ar_hm = Admin.query.filter_by(designation="Assistant Registrar (HM)").first()
+        if ar_hm and ar_hm.signature:
+            can.drawImage(ImageReader(BytesIO(ar_hm.signature)), 270, 100, width=50, height=30)  # AR (HM) Signature
+
+        # Fetch Chief Warden signature
+        chief_warden_entry = Warden.query.filter_by(is_chief=True).first()
+        if chief_warden_entry:
+            chief_warden = Faculty.query.filter_by(faculty_id=chief_warden_entry.faculty_id).first()
+            if chief_warden and chief_warden.signature:
+                can.drawImage(ImageReader(BytesIO(chief_warden.signature)), 465, 100, width=50, height=30)  # Chief Warden Signature
+
+    can.save()
+    packet.seek(0)
+
+    # Merge the overlay with the template
+    reader = PdfReader(template_path)
+    writer = PdfWriter()
+    overlay = PdfReader(packet)
+
+    # Merge the overlay only with the first page of the template
+    if len(reader.pages) > 0:
+        first_page = reader.pages[0]
+        first_page.merge_page(overlay.pages[0])
+        writer.add_page(first_page)
+
+    # Add the remaining pages of the template without modification
+    for page in reader.pages[1:]:
+        writer.add_page(page)
+
+    output = BytesIO()
+    writer.write(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype="application/pdf",
+        download_name="project_accommodation_request.pdf",
+        as_attachment=False  # This ensures the PDF is displayed inline
+    )

@@ -2,44 +2,80 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>HOD Pending Project Accommodation Requests</h2>
+    <h2 class="mb-4">HOD Pending Project Accommodation Requests</h2>
 
     {% if pending_requests %}
-        <div class="table-responsive">
-            <table class="table table-hover table-bordered align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Request ID</th>
-                        <th>Applicant Name</th>
-                        <th>Address</th>
-                        <th>Stay From</th>
-                        <th>Stay To</th>
-                        <th>Remarks</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for request in pending_requests %}
-                    <tr>
-                        <td>{{ request.id }}</td>
-                        <td>{{ request.applicant.name }}</td>
-                        <td>{{ request.address }}</td>
-                        <td>{{ request.stay_from }}</td>
-                        <td>{{ request.stay_to }}</td>
-                        <td>{{ request.remarks or 'N/A' }}</td>
-                        <td class="text-center">
-                            <form method="POST" action="{{ url_for('faculty.hod_handle_project_request', request_id=request.id) }}">
-                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm me-1">Approve</button>
-                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">Reject</button>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>Request ID</th>
+                    <th>Applicant Name</th>
+                    <th>Address</th>
+                    <th>Stay From</th>
+                    <th>Stay To</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request in pending_requests %}
+                <tr>
+                    <td class="text-center">{{ request.id }}</td>
+                    <td>{{ request.applicant.name }}</td>
+                    <td>{{ request.address }}</td>
+                    <td>{{ request.stay_from }}</td>
+                    <td>{{ request.stay_to }}</td>
+                    <td>{{ request.remarks or 'N/A' }}</td>
+                    <td class="text-center">
+                        <div class="d-flex flex-column align-items-center gap-2">
+                            <!-- View PDF Button -->
+                            <button class="btn btn-info btn-sm w-100" onclick="viewPDF({{ request.id }})">
+                                View PDF
+                            </button>
+                            <form method="POST" action="{{ url_for('faculty.hod_handle_project_request', request_id=request.id) }}" class="d-flex gap-2">
+                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">
+                                    Approve
+                                </button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">
+                                    Reject
+                                </button>
                             </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-        <p>No pending project accommodation requests found.</p>
+    <div class="alert alert-info mt-4" role="alert">
+        No pending project accommodation requests found.
+    </div>
     {% endif %}
 </div>
+
+<!-- PDF Modal -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="pdfModalLabel">Project Accommodation PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="pdfViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function viewPDF(requestId) {
+        const pdfUrl = `/faculty/view_project_accommodation_pdf/${requestId}`;
+        document.getElementById('pdfViewer').src = pdfUrl;
+        const modal = new bootstrap.Modal(document.getElementById('pdfModal'));
+        modal.show();
+    }
+</script>
 {% endblock %}
