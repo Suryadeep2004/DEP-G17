@@ -1,0 +1,54 @@
+{% extends "caretaker/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">🏠 Room Allocation Dashboard</h2>
+    <div class="row g-4 justify-content-center">
+
+        <!-- All Rooms -->
+        <div class="col-md-4">
+            <a href="/caretaker/rooms" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-building fs-2 text-secondary"></i>
+                        <h5 class="mt-3">All Rooms</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Vacant Rooms -->
+        <div class="col-md-4">
+            <a href="/caretaker/vacant_rooms" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-door-open-fill fs-2 text-success"></i>
+                        <h5 class="mt-3">Vacant Rooms</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Room Change Requests -->
+        <div class="col-md-4">
+            <a href="{{ url_for('caretaker.room_change_requests') }}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-arrow-repeat fs-2 text-warning"></i>
+                        <h5 class="mt-3">Room Change Requests</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add this in base.html or here in a <style> block -->
+<style>
+    .hover-scale:hover {
+        transform: scale(1.03);
+        transition: transform 0.3s ease;
+    }
+</style>
+{% endblock %}

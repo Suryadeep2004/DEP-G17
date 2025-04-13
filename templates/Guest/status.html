@@ -1,11 +1,11 @@
-{% extends "student/base.html" %}
+{% extends "guest/base.html" %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Status of Internship Applications</h2>
+    <h2>Application Status</h2>
 
     <!-- Filter Form -->
-    <form method="POST" action="{{ url_for('student.internship_form_status') }}" class="mb-4">
+    <form method="POST" action="{{ url_for('guest.status') }}" class="mb-4">
         <div class="row g-3 align-items-center">
             <div class="col-auto">
                 <label for="filter_date" class="form-label">Filter by Date:</label>
@@ -19,98 +19,88 @@
         </div>
     </form>
 
-    {% if internship_applications %}
-        {% for application in internship_applications %}
+    <!-- Guest Room Booking Status -->
+    {% if guest_room_bookings %}
+        {% for booking in guest_room_bookings %}
         <div class="card shadow-sm border-0 mt-4">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Internship Application (Application ID: {{ application.id }})</h5>
+                <h5 class="mb-0">Guest Room Booking (Application ID: {{ booking.id }})</h5>
             </div>
             <div class="card-body">
-                <p><strong>Status:</strong> {{ application.status }}</p>
+                <p><strong>Status:</strong> {{ booking.status }}</p>
 
                 <!-- Stepper -->
-                <div class="stepper">
-                    <!-- Step 1: Faculty -->
+                <div class="stepper d-flex justify-content-between align-items-center mt-4">
+                    <!-- Step 1: JA (HM) -->
                     <div class="step 
-                        {% if application.status == 'Rejected by Faculty' %}
+                        {% if booking.status == 'Rejected by JA (HM)' %}
                             rejected
-                        {% elif 'Pending Faculty Approval' in application.status %}
+                        {% elif 'Pending approval from JA (HM)' in booking.status %}
                             pending
                         {% else %}
                             completed
                         {% endif %}">
                         <div class="circle">1</div>
-                        <p>Faculty</p>
+                        <p class="text-center mt-2">JA (HM)</p>
                     </div>
 
-                    <!-- Step 2: HOD -->
+                    <!-- Step 2: AR (HM) -->
                     <div class="step 
-                        {% if application.status == 'Rejected by HOD' %}
+                        {% if booking.status == 'Rejected by Assistant Registrar (HM)' %}
                             rejected
-                        {% elif 'Pending HOD Approval' in application.status %}
+                        {% elif 'Pending approval from Assistant Registrar (HM)' in booking.status %}
                             pending
-                        {% elif application.status in ['Approved by HOD','Approved by Caretaker','Rejected by Caretaker','Approved by Admin','Disapproved by Admin'] %}
+                        {% elif booking.status in ['Approved', 'Rejected by Chief Warden'] %}
                             completed
-                        {% else %}
+                        {% elif 'Rejected' in booking.status %}
                             normal
+                        {% elif 'Pending approval from JA (HM)' in booking.status %}
+                            normal
+                        {% else %}
+                            completed
                         {% endif %}">
                         <div class="circle">2</div>
-                        <p>HOD</p>
+                        <p class="text-center mt-2">AR (HM)</p>
                     </div>
 
-                    <!-- Step 3: Admin -->
+                    <!-- Step 3: Chief Warden -->
                     <div class="step 
-                        {% if application.status == 'Disapproved by Admin' %}
+                        {% if booking.status == 'Rejected by Chief Warden' %}
                             rejected
-                        {% elif 'Approved by HOD' in application.status %}
-                            pending
-                        {% elif application.status in ['Approved by Admin','Approved by Caretaker','Rejected by Caretaker'] %}
+                        {% elif booking.status == 'Approved' %}
                             completed
+                        {% elif 'Pending approval from Chief Warden' in booking.status %}
+                            pending
+                        {% elif 'Rejected' in booking.status %}
+                            normal
                         {% else %}
                             normal
                         {% endif %}">
                         <div class="circle">3</div>
-                        <p>Admin</p>
-                    </div>
-
-                    <!-- Step 4: Caretaker -->
-                    <div class="step 
-                        {% if application.status == 'Rejected by Caretaker' %}
-                            rejected
-                        {% elif 'Approved by Admin' in application.status %}
-                            pending
-                        {% elif application.status == 'Approved by Caretaker' %}
-                            completed
-                        {% else %}
-                            normal
-                        {% endif %}">
-                        <div class="circle">4</div>
-                        <p>Caretaker</p>
+                        <p class="text-center mt-2">Chief Warden</p>
                     </div>
                 </div>
 
                 <!-- Rejection Note -->
-                {% if 'Rejected' in application.status or 'Disapproved' in application.status %}
+                {% if 'Rejected' in booking.status %}
                 <p class="text-danger mt-3">
-                    <strong>Note:</strong> Your internship application was rejected by 
-                    {% if application.status == 'Rejected by Faculty' %}
-                        Faculty.
-                    {% elif application.status == 'Rejected by HOD' %}
-                        HOD.
-                    {% elif application.status == 'Disapproved by Admin' %}
-                        Admin.
-                    {% elif application.status == 'Rejected by Caretaker' %}
-                        Caretaker.
+                    <strong>Note:</strong> Your guest room booking was rejected by 
+                    {% if booking.status == 'Rejected by JA (HM)' %}
+                        JA (HM).
+                    {% elif booking.status == 'Rejected by Assistant Registrar (HM)' %}
+                        Assistant Registrar (HM).
+                    {% elif booking.status == 'Rejected by Chief Warden' %}
+                        Chief Warden.
                     {% endif %}
                 </p>
                 {% endif %}
 
-                <button class="btn btn-primary mt-3" onclick="viewPDF('{{ application.id }}')">View Internship Application PDF</button>
+                <button class="btn btn-primary mt-3" onclick="viewPDF('{{ booking.id }}')">View Guest Room Booking PDF</button>
             </div>
         </div>
         {% endfor %}
     {% else %}
-        <p>No internship applications found.</p>
+        <p>No guest room booking applications found.</p>
     {% endif %}
 </div>
 
@@ -119,7 +109,7 @@
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="pdfModalLabel">Internship Application PDF</h5>
+                <h5 class="modal-title" id="pdfModalLabel">Guest Room Booking PDF</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -130,8 +120,8 @@
 </div>
 
 <script>
-    function viewPDF(applicationId) {
-        const pdfUrl = `/student/view_internship_application_pdf/${applicationId}`;
+    function viewPDF(bookingId) {
+        const pdfUrl = `/guest/view_guest_room_booking_pdf/${bookingId}`;
         document.getElementById('pdfViewer').src = pdfUrl;
         const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
         pdfModal.show();
@@ -154,7 +144,7 @@
         left: 0;
         right: 0;
         height: 4px;
-        background-color: #0b2c4a;
+        background-color: #e0e0e0;
         z-index: 0;
     }
 
@@ -168,7 +158,7 @@
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background-color: #0b2c4a; /* Default gray */
+        background-color: #e0e0e0; /* Default gray */
         color: #fff;
         display: flex;
         align-items: center;

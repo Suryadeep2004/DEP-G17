@@ -46,6 +46,43 @@ def profile():
 
     return render_template("admin/profile.html", user=user, admin=admin)
 
+@admin_bp.route('/admin/approvals_dashboard', methods=['GET'])
+def approvals_dashboard():
+    return render_template('admin/approvals_dashboard.html')
+
+@admin_bp.route("/admin/update_profile", methods=["GET", "POST"])
+def update_profile():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    user = CustomUser.query.get(user_id)
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if user is None or admin is None:
+        return redirect(url_for('auth.login'))
+
+    if request.method == "POST":
+        # Get updated data from the form
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+
+        # Update the database
+        user.name = name
+        admin.phone = phone
+
+        # Handle signature upload
+        if 'signature' in request.files:
+            signature_file = request.files['signature']
+            if signature_file:
+                admin.signature = signature_file.read()
+
+        db.session.commit()
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for('admin.profile'))
+
+    return render_template("admin/update_profile.html", user=user, admin=admin)
+
 @admin_bp.route("/admin/signature/<int:admin_id>")
 def get_signature(admin_id):
     admin = Admin.query.get(admin_id)

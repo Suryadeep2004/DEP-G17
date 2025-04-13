@@ -1,0 +1,28 @@
+<style>
+    .signature-box {
+        min-height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa; /* Optional: Add a background color */
+        border: 1px solid #ddd; /* Optional: Add a border */
+        border-radius: 8px; /* Optional: Add rounded corners */
+    }
+
+    .signature-frame {
+        width: 150px; /* Set the width of the square frame */
+        height: 150px; /* Set the height of the square frame */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden; /* Hide overflow to ensure the signature stays within the frame */
+        border: 1px solid #ccc; /* Optional: Add a border */
+        background-color: #fff; /* Optional: Add a background color */
+    }
+
+    .signature-image {
+        max-width: 100%; /* Ensure the image fits within the frame */
+        max-height: 100%; /* Ensure the image fits within the frame */
+        object-fit: contain; /* Maintain aspect ratio and fit within the frame */
+    }
+</style>

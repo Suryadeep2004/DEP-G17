@@ -1,8 +1,8 @@
 <style>
     .sidebar {
         width: 260px;
-        background-color: #2e7d32; /* Primary green */
-        color: #f0fdf4;
+        background-color: #0b2c4a;
+        color: #ffffff;
         position: fixed;
         height: 100%;
         display: flex;
@@ -20,8 +20,8 @@
     }
 
     .toggle-btn {
-        background-color: #1b5e20;
-        color: white;
+        background-color: #0d3c63;
+        color: #ffffff;
         border: none;
         padding: 12px;
         cursor: pointer;
@@ -31,7 +31,7 @@
     }
 
     .toggle-btn:hover {
-        background-color: #43a047;
+        background-color: #105080;
     }
 
     .sidebar-content {
@@ -47,11 +47,11 @@
     .sidebar a {
         text-decoration: none;
         font-size: 1.05rem;
-        color: #f0fdf4;
+        color: #e1ecf4;
         margin: 6px auto;
         padding: 12px 20px;
         width: 90%;
-        border-radius: 10px;
+        border-radius: 8px;
         display: flex;
         justify-content: center;
         transition: background-color 0.3s ease, transform 0.2s ease;
@@ -63,17 +63,17 @@
     }
 
     .sidebar a:hover {
-        background-color: #4caf50;
+        background-color: #105080;
         color: #ffffff;
         transform: translateX(3px);
     }
 
     .sidebar a:active {
-        background-color: #2e7d32;
+        background-color: #0a2a44;
         color: #ffffff;
     }
 
-    /* Collapsed view: show only toggle */
+    /* Hide everything when collapsed except toggle */
     .sidebar.collapsed .sidebar-content,
     .sidebar.collapsed h3 {
         display: none;
@@ -105,9 +105,9 @@
 <div class="sidebar" id="sidebar">
     <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <div class="sidebar-content">
-        <a href="/caretaker"><span>Manage Profile</span></a>
-        <a href="/caretaker/approvals_dashboard"><span>Approvals</span></a>
-        <a href="/caretaker/room_allocation_dashboard"><span>Room Allocation</span></a>
+        <a href="{{ url_for('guest.profile') }}"><span>Manage Profile</span></a>
+        <a href="{{ url_for('guest.guest_room_booking_form') }}"><span>Guest Room Booking Form</span></a>
+        <a href="{{ url_for('guest.status') }}"><span>Booking Status</span></a>
         <a href="/logout"><span>Logout</span></a>
     </div>
 </div>

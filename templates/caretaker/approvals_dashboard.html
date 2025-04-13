@@ -1,0 +1,39 @@
+{% extends "caretaker/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">✅ Caretaker Approvals Dashboard</h2>
+    <div class="row g-4 justify-content-center">
+
+        <!-- Pending Approvals -->
+        <div class="col-md-4">
+            <a href="/caretaker/pending_approvals" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-list-check fs-2 text-primary"></i>
+                        <h5 class="mt-3">Pending Approvals</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Project Accommodation Requests -->
+        <div class="col-md-4">
+            <a href="{{ url_for('caretaker.project_requests') }}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-house-check-fill fs-2 text-info"></i>
+                        <h5 class="mt-3">Project Accommodation Requests</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+<!-- Add this in base.html or here in a <style> block -->
+<style>
+    .hover-scale:hover {
+        transform: scale(1.03);
+        transition: transform 0.3s ease;
+    }
+</style>
+{% endblock %}

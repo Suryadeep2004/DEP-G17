@@ -15,6 +15,7 @@
                         <h6 class="fw-bold">{{ user.name }}</h6>
                     </div>
                 </div>
+                
 
                 <!-- User Details -->
                 <div class="col-md-6">
@@ -22,6 +23,7 @@
                         <p><strong>Room Number:</strong> {{ student.student_room_no if student.student_room_no else 'Undefined' }}</p>
                         <p><strong>Email:</strong> {{ user.email }}</p>
                         <p><strong>Phone Number:</strong> {{ student.student_phone if student.student_phone else 'Undefined' }}</p>
+                        <a href="{{ url_for('student.update_profile') }}" class="btn btn-primary mt-3">Edit Profile</a>
                     </div>
                 </div>
 

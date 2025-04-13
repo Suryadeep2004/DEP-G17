@@ -106,14 +106,9 @@
     <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <div class="sidebar-content">
         <a href="/admin"><span>Manage Profile</span></a>
-        <a href="/admin/pending_internship_applications"><span>Pending Internship Applications</span></a>
-        <a href="{{ url_for('admin.approved_applications') }}"><span>Approved Applications</span></a>
-        <a href="{{ url_for('admin.guest_room_booking_approvals') }}"><span>Guest Room Booking Approvals</span></a>
+        <a href="/admin/approvals_dashboard"><span>Approvals</span></a>
         <a href="{{ url_for('admin.add_users') }}"><span>Add Users</span></a>
         <a href="{{ url_for('admin.guest_room_booking_status') }}"><span>Guest Room Booking Status</span></a>
-        {% if session.get('designation') == 'Assistant Registrar (HM)' %}
-        <a href="{{ url_for('admin.ar_pending_project_requests') }}"><span>Pending Project Requests</span></a>
-        {% endif %}
         <a href="/logout"><span>Logout</span></a>
     </div>
 </div>

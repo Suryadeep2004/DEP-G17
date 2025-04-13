@@ -73,7 +73,10 @@
         color: #ffffff;
     }
 
-    /* Collapsed view: hide content except toggle */
+    .hidden {
+        display: none;
+    }
+
     .sidebar.collapsed .sidebar-content,
     .sidebar.collapsed h3 {
         display: none;
@@ -84,20 +87,7 @@
     <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <div class="sidebar-content">
         <a href="/faculty"><span>Manage Profile</span></a>
-        <a href="/faculty/pending_approvals"><span>Pending Approvals</span></a>
-        {% if session.get('user_role') == 'faculty' and not session.get('is_chief_warden') %}
-        <a href="{{ url_for('faculty.pending_project_accommodation_requests') }}"><span>Pending Project Accommodation Requests</span></a>
-        {% endif %}
-        {% if session.get('user_role') == 'faculty' and session.get('is_hod') %}
-        <a href="/faculty/hod_pending_approvals"><span>HOD Pending Approvals</span></a>
-        <a href="{{ url_for('faculty.hod_pending_project_requests') }}"><span>HOD Pending Project Requests</span></a>
-        {% endif %}
-        {% if session.get('user_role') == 'faculty' and session.get('is_chief_warden') %}
-        <a href="/faculty/guest_room_booking_approvals"><span>Guest Room Booking Approvals</span></a>
-        <a href="{{ url_for('faculty.chief_warden_pending_requests') }}"><span>Chief Warden Pending Requests</span></a>
-        <a href="/faculty/batch_allocation"><span>Batch Allocation</span></a>
-        <a href="/faculty/allocate_batch_sandbox"><span>Allocate Batch in Sandbox</span></a>
-        {% endif %}
+        <a href="/faculty/approvals_dashboard"><span>Approvals</span></a>
         <a href="/logout"><span>Logout</span></a>
     </div>
 </div>
@@ -114,5 +104,10 @@
         if (headerContent) {
             headerContent.classList.toggle('collapsed');
         }
+    }
+
+    function toggleApprovals() {
+        const approvalsSection = document.getElementById('approvals-section');
+        approvalsSection.classList.toggle('hidden');
     }
 </script>

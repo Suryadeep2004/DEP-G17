@@ -15,6 +15,7 @@ class CustomUser(db.Model):
     caretaker = db.relationship('Caretaker', backref='user', uselist=False, cascade="all, delete")
     faculty = db.relationship('Faculty', backref='user', uselist=False, cascade="all, delete")
     admin = db.relationship('Admin', backref='user', uselist=False, cascade="all, delete")
+    guest = db.relationship('Guest', backref='user', uselist=False, cascade="all, delete")
 
     def set_password(self, password):
         self.password = password
@@ -47,6 +48,8 @@ class Caretaker(db.Model):
     caretaker_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), unique=True, nullable=False)
     hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'), nullable=False)
+    phone = db.Column(db.String(15))  # Add this field for phone number
+    signature = db.Column(db.LargeBinary)  # Add this field for signature
  
 class CaretakerHistory(db.Model):
     __tablename__ = 'caretaker_history'
@@ -210,3 +213,9 @@ class ProjectAccommodationRequest(db.Model):
     
     applicant = db.relationship('CustomUser', backref=db.backref('project_accommodation_requests', cascade='all, delete-orphan'))
     hostel = db.relationship('Hostel', backref=db.backref('project_accommodation_requests', cascade='all, delete-orphan'))
+
+class Guest(db.Model):
+    __tablename__ = 'guest'
+    guest_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), primary_key=True)
+    phone = db.Column(db.String(15))
+    address = db.Column(db.String(255))

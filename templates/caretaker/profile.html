@@ -1,32 +1,104 @@
 {% extends "caretaker/base.html" %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-0">
     <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="row d-flex align-items-stretch"> <!-- Ensures equal height -->
-                
-                <!-- Profile Card -->
-                <div class="col-md-6">
-                    <div class="card p-4 shadow-sm text-center h-100"> <!-- h-100 ensures same height -->
-                        <div class="d-flex justify-content-center">
-                            <img src="{{ url_for('static', filename='profile_pic.png') }}" class="rounded-circle shadow-sm mb-3" width="80" height="80" alt="Profile Picture">
+        <div class="col-md-8">
+            <!-- Profile Card -->
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="row align-items-center">
+                            <!-- User Details -->
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="name" class="fw-bold">Name</label>
+                                    <input type="text" class="form-control" id="name" value="{{ user.name }}" readonly>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="email" class="fw-bold">Email</label>
+                                    <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="hostel" class="fw-bold">Hostel</label>
+                                    <input type="text" class="form-control" id="hostel" value="{{ hostel.hostel_name }}" readonly>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="caretaker_phone" class="fw-bold">Phone</label>
+                                    <input type="text" class="form-control" id="caretaker_phone" value="{{ caretaker.phone }}" readonly>
+                                </div>
+                            </div>
+
+                            <!-- Signature Section -->
+                            <div class="col-md-6 text-center">
+                                <h5 class="fw-bold">Current Signature</h5>
+                                <div class="signature-box border rounded p-3 bg-light">
+                                    {% if caretaker.signature %}
+                                        <div class="signature-frame">
+                                            <img src="{{ url_for('caretaker.get_signature', caretaker_id=caretaker.caretaker_id) }}" 
+                                                 alt="Signature" class="signature-image">
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">No signature uploaded.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
-                        <h6 class="fw-bold">{{ user.name }}</h6>
-                    </div>
-                </div>
+                        
+                        <hr class="my-4">
 
-                <!-- User Details -->
-                <div class="col-md-6">
-                    <div class="card p-4 shadow-sm h-100"> <!-- h-100 ensures same height -->
-                        <p><strong>Email:</strong> {{ user.email }}</p>
-                        <p><strong>Hostel:</strong> {{ hostel.hostel_name }}</p>
-                        <p><strong>Hostel No:</strong> {{ caretaker.hostel_no }}</p>
-                    </div>
+                        <!-- Profile Edit -->
+                        <div class="text-center mt-4">
+                            <a href="{{ url_for('caretaker.update_profile') }}" class="btn btn-primary">Edit Profile</a>
+                        </div>
+                    </form>
                 </div>
-
-            </div> 
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Add Some Custom Styling -->
+<style>
+    .signature-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 150px;
+    }
+
+    .signature-frame {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        max-width: 100%;
+        max-height: 100%;
+        overflow: hidden;
+    }
+
+    .signature-image {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain; /* Ensures the signature fits within the frame */
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .row.align-items-center {
+            flex-direction: column; /* Stack details and signature vertically on smaller screens */
+        }
+    }
+</style>
 {% endblock %}

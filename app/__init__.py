@@ -4,6 +4,7 @@ from .config import Config
 from .database import db
 from flask_mail import Mail
 from flask_migrate import Migrate
+import base64
 
 mail = Mail()
 migrate = Migrate()
@@ -33,5 +34,15 @@ def create_app():
 
     from app.admin import admin_bp
     app.register_blueprint(admin_bp)
+
+    from app.guest import guest_bp
+    app.register_blueprint(guest_bp, url_prefix="/guest")
+
+
+    @app.template_filter('b64encode')
+    def b64encode_filter(data):
+        if data:
+            return base64.b64encode(data).decode('utf-8')
+        return None
 
     return app

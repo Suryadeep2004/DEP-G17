@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">✅ Admin Approvals Dashboard</h2>
+    <div class="row g-4 justify-content-center">
+
+        <!-- Pending Internship Applications -->
+        <div class="col-md-4">
+            <a href="/admin/pending_internship_applications" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-briefcase-fill fs-2 text-primary"></i>
+                        <h5 class="mt-3">Pending Internship Applications</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Approved Applications -->
+        <div class="col-md-4">
+            <a href="{{ url_for('admin.approved_applications') }}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-check-circle-fill fs-2 text-success"></i>
+                        <h5 class="mt-3">Approved Applications</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Guest Room Booking Approvals -->
+        <div class="col-md-4">
+            <a href="{{ url_for('admin.guest_room_booking_approvals') }}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-door-open-fill fs-2 text-warning"></i>
+                        <h5 class="mt-3">Guest Room Booking Approvals</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Pending Project Requests (Assistant Registrar) -->
+        {% if session.get('designation') == 'Assistant Registrar (HM)' %}
+        <div class="col-md-4">
+            <a href="{{ url_for('admin.ar_pending_project_requests') }}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 h-100 transition hover-scale">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-folder-check fs-2 text-danger"></i>
+                        <h5 class="mt-3">Pending Project Requests</h5>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<!-- Add this in base.html or here in a <style> block -->
+<style>
+    .hover-scale:hover {
+        transform: scale(1.03);
+        transition: transform 0.3s ease;
+    }
+</style>
+{% endblock %}

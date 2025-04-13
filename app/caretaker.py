@@ -8,6 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 import tempfile
 from PyPDF2 import PdfReader, PdfWriter
+from flask import Response
 
 caretaker_bp = Blueprint("caretaker", __name__)
 
@@ -26,6 +27,55 @@ def profile():
     hostel = Hostel.query.filter_by(hostel_no=caretaker.hostel_no).first()
 
     return render_template("caretaker/profile.html", user=user, caretaker=caretaker, hostel=hostel)
+
+@caretaker_bp.route('/caretaker/approvals_dashboard', methods=['GET'])
+def approvals_dashboard():
+    return render_template('caretaker/approvals_dashboard.html')
+
+@caretaker_bp.route('/caretaker/room_allocation_dashboard', methods=['GET'])
+def room_allocation_dashboard():
+    return render_template('caretaker/room_allocation_dashboard.html')
+
+@caretaker_bp.route("/caretaker/update_profile", methods=["GET", "POST"])
+def update_profile():
+    if 'user_id' not in session or session.get('user_role') != 'caretaker':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    user = CustomUser.query.get(user_id)
+    caretaker = Caretaker.query.filter_by(user_id=user_id).first()
+
+    if user is None or caretaker is None:
+        return redirect(url_for('auth.login'))
+
+    if request.method == "POST":
+        # Get updated data from the form
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+
+        # Update the database
+        user.name = name
+        caretaker.phone = phone  # Ensure the `Caretaker` model has a `phone` field
+
+        # Handle signature upload
+        if 'signature' in request.files:
+            signature_file = request.files['signature']
+            if signature_file:
+                caretaker.signature = signature_file.read()
+
+        db.session.commit()
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for('caretaker.profile'))
+
+    return render_template("caretaker/update_profile.html", user=user, caretaker=caretaker)
+
+# filepath: /Users/ashutoshsingh/Documents/DEP-G17/app/caretaker.py
+@caretaker_bp.route("/caretaker/get_signature/<int:caretaker_id>")
+def get_signature(caretaker_id):
+    caretaker = Caretaker.query.get(caretaker_id)
+    if caretaker and caretaker.signature:
+        return Response(caretaker.signature, mimetype="image/png")
+    return '', 404  # Return 404 if no signature is found
 
 @caretaker_bp.route("/caretaker/pending_approvals", methods=["GET", "POST"])
 def pending_approvals():

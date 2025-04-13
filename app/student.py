@@ -16,7 +16,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.units import inch
 from sqlalchemy.sql import func
-
 from random import randint
 
 student_bp = Blueprint("student", __name__)
@@ -35,6 +34,33 @@ def profile():
 
     internship_application = InternshipApplication.query.filter_by(email=user.email).first()
     return render_template("student/profile.html", user=user, student=student, internship_application=internship_application)
+
+@student_bp.route("/student/update_profile", methods=["GET", "POST"])
+def update_profile():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    user = CustomUser.query.get(user_id)
+    student = Student.query.filter_by(student_id=user_id).first()
+
+    if request.method == "POST":
+        # Get updated data from the form
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        
+
+        # Update the database
+        user.name = name
+        user.email = email
+        student.student_phone = phone
+
+        db.session.commit()
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for('student.profile'))
+
+    return render_template("student/update_profile.html", user=user, student=student)
 
 @student_bp.route("/student/internship_form", methods=["GET"])
 def internship_form():

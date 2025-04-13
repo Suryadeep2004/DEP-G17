@@ -1,0 +1,23 @@
+{% extends "caretaker/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Update Profile</h2>
+    <form method="POST" action="{{ url_for('caretaker.update_profile') }}" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" class="form-control" id="name" name="name" value="{{ user.name }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="text" class="form-control" id="phone" name="phone" value="{{ caretaker.phone }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="signature" class="form-label">Upload Signature</label>
+            <input type="file" class="form-control" id="signature" name="signature" accept="image/*">
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('caretaker.profile') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

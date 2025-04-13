@@ -8,7 +8,8 @@
             <div class="card shadow-lg border-0 rounded-lg">
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
-                        <div class="row">
+                        <div class="row align-items-center">
+                            <!-- User Details -->
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
                                     <label for="name" class="fw-bold">Name</label>
@@ -27,12 +28,16 @@
                                     <input type="text" class="form-control" id="faculty_phone" value="{{ faculty.faculty_phone }}" readonly>
                                 </div>
                             </div>
+
+                            <!-- Signature Section -->
                             <div class="col-md-6 text-center">
                                 <h5 class="fw-bold">Current Signature</h5>
                                 <div class="signature-box border rounded p-3 bg-light">
                                     {% if faculty.signature %}
-                                        <img src="{{ url_for('faculty.get_signature', faculty_id=faculty.faculty_id) }}" 
-                                             alt="Signature" class="img-fluid rounded shadow-sm">
+                                        <div class="signature-frame">
+                                            <img src="{{ url_for('faculty.get_signature', faculty_id=faculty.faculty_id) }}" 
+                                                 alt="Signature" class="signature-image">
+                                        </div>
                                     {% else %}
                                         <p class="text-muted">No signature uploaded.</p>
                                     {% endif %}
@@ -42,17 +47,9 @@
                         
                         <hr class="my-4">
 
-                        <!-- Upload Section -->
-                        <div class="form-group text-center">
-                            <label for="signature" class="fw-bold">Upload New Signature</label>
-                            <input type="file" class="form-control-file form-control mt-2" id="signature" name="signature">
-                        </div>
-
-                        <!-- Submit Button -->
+                        <!-- Profile Edit -->
                         <div class="text-center mt-4">
-                            <button type="submit" class="btn btn-lg btn-success shadow-sm px-4">
-                                <i class="fas fa-upload"></i> Update Signature
-                            </button>
+                            <a href="{{ url_for('faculty.update_profile') }}" class="btn btn-primary">Edit Profile</a>
                         </div>
                     </form>
                 </div>
@@ -64,11 +61,44 @@
 <!-- Add Some Custom Styling -->
 <style>
     .signature-box {
-        min-height: 150px;
         display: flex;
         align-items: center;
         justify-content: center;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 150px;
+    }
+
+    .signature-frame {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        max-width: 100%;
+        max-height: 100%;
+        overflow: hidden;
+    }
+
+    .signature-image {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain; /* Ensures the signature fits within the frame */
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .row.align-items-center {
+            flex-direction: column; /* Stack details and signature vertically on smaller screens */
+        }
     }
 </style>
-
 {% endblock %}

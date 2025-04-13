@@ -12,6 +12,7 @@ import tempfile
 from random import randint
 from redis import Redis
 from datetime import datetime, timedelta
+from flask import Response
 
 faculty_bp = Blueprint("faculty", __name__)
 REDIS_URL = "redis://default:SECha3rfcypwujnEptRBzdwWpI5pqc84@redis-12806.c99.us-east-1-4.ec2.redns.redis-cloud.com:12806"
@@ -42,12 +43,50 @@ def profile():
 
     return render_template("faculty/profile.html", user=user, faculty=faculty)
 
-@faculty_bp.route("/faculty/signature/<int:faculty_id>")
+@faculty_bp.route('/faculty/approvals_dashboard', methods=['GET'])
+def approvals_dashboard():
+    return render_template('faculty/approvals_dashboard.html')
+
+@faculty_bp.route("/faculty/update_profile", methods=["GET", "POST"])
+def update_profile():
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    user = CustomUser.query.get(user_id)
+    faculty = Faculty.query.filter_by(faculty_id=user_id).first()
+
+    if user is None or faculty is None:
+        return redirect(url_for('auth.login'))
+
+    if request.method == "POST":
+        # Get updated data from the form
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+        
+
+        # Update the database
+        user.name = name
+        faculty.faculty_phone = phone
+
+        # Handle signature upload
+        if 'signature' in request.files:
+            signature_file = request.files['signature']
+            if signature_file:
+                faculty.signature = signature_file.read()
+
+        db.session.commit()
+        flash("Profile updated successfully.", "success")
+        return redirect(url_for('faculty.profile'))
+
+    return render_template("faculty/update_profile.html", user=user, faculty=faculty)
+
+@faculty_bp.route("/faculty/get_signature/<int:faculty_id>")
 def get_signature(faculty_id):
     faculty = Faculty.query.get(faculty_id)
     if faculty and faculty.signature:
-        return faculty.signature, 200, {'Content-Type': 'image/png'}
-    return '', 404
+        return Response(faculty.signature, mimetype="image/png")
+    abort(404)  # Return 404 if no signature is found
 
 @faculty_bp.route("/faculty/pending_approvals", methods=["GET", "POST"])
 def pending_approvals():
