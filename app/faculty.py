@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify, send_file
-from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel, Student, ProjectAccommodationRequest
+from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel, Student, ProjectAccommodationRequest, Admin
 from app.database import db
 from flask_mail import Message
 from app import mail 
@@ -9,8 +9,13 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import tempfile
+from random import randint
+from redis import Redis
+from datetime import datetime, timedelta
 
 faculty_bp = Blueprint("faculty", __name__)
+REDIS_URL = "redis://default:SECha3rfcypwujnEptRBzdwWpI5pqc84@redis-12806.c99.us-east-1-4.ec2.redns.redis-cloud.com:12806"
+redis_client = Redis.from_url(REDIS_URL)
 
 @faculty_bp.route("/faculty", methods=["GET", "POST"])
 def profile():
@@ -955,3 +960,133 @@ def view_project_accommodation_pdf(request_id):
         download_name="project_accommodation_request.pdf",
         as_attachment=False  # This ensures the PDF is displayed inline
     )
+
+@faculty_bp.route("/faculty/approve_request", methods=["GET", "POST"])
+def approve_request():
+    if request.method == "POST":
+        request_id = request.form.get("request_id")
+        otp = request.form.get("otp")
+
+        # Redis keys for tracking failed attempts
+        failed_attempts_key = f"failed_attempts_request_{request_id}"
+        cooldown_key = f"cooldown_request_{request_id}"
+
+        # Check if the request is in cooldown
+        cooldown_end = redis_client.get(cooldown_key)
+        if cooldown_end:
+            cooldown_end = datetime.strptime(cooldown_end.decode(), "%Y-%m-%d %H:%M:%S")
+            if datetime.utcnow() < cooldown_end:
+                remaining_time = (cooldown_end - datetime.utcnow()).seconds
+                flash(f"Too many failed attempts. Please try again after {remaining_time} seconds.", "danger")
+                return redirect(url_for('faculty.approve_request'))
+
+        # Verify the OTP
+        request_entry = ProjectAccommodationRequest.query.get(request_id)
+        if not request_entry or request_entry.otp != otp:
+            # Increment failed attempts
+            failed_attempts = redis_client.incr(failed_attempts_key)
+            redis_client.expire(failed_attempts_key, 300)  # Expire failed attempts after 5 minutes
+
+            if failed_attempts >= 3:
+                # Set cooldown period of 2 minutes
+                cooldown_end = datetime.utcnow() + timedelta(minutes=2)
+                redis_client.set(cooldown_key, cooldown_end.strftime("%Y-%m-%d %H:%M:%S"))
+                redis_client.expire(cooldown_key, 120)  # Cooldown expires after 2 minutes
+                flash("Too many failed attempts. Please try again after 2 minutes.", "danger")
+            else:
+                flash(f"Invalid OTP. You have {3 - failed_attempts} attempts remaining.", "danger")
+
+            return redirect(url_for('faculty.approve_request'))
+
+        # Reset failed attempts on success
+        redis_client.delete(failed_attempts_key)
+        redis_client.delete(cooldown_key)
+
+        if request.form.get("action") == "approve":
+            request_entry.status = "Pending approval from HOD"
+            # Generate a new OTP for HOD
+            request_entry.otp = str(randint(1000000000, 9999999999))
+            db.session.commit()
+
+            # Send email to HOD
+            hod = Faculty.query.filter_by(is_hod=True).first()
+            if hod:
+                msg = Message(
+                    "New Project Accommodation Request for Approval",
+                    sender="your-email@example.com",  # Replace with your email
+                    recipients=[hod.user.email]
+                )
+                msg.body = (
+                    f"Dear HOD,\n\n"
+                    f"Request ID: {request_entry.id}\n"
+                    f"OTP: {request_entry.otp}\n\n"
+                    f"To approve or reject this request, please visit the following link:\n"
+                    f"{url_for('faculty.hod_approve_request', _external=True)}\n\n"
+                    f"Thank you!"
+                )
+                mail.send(msg)
+
+            flash("Request approved and forwarded to HOD.", "success")
+        elif request.form.get("action") == "reject":
+            request_entry.status = "Rejected by Faculty"
+            db.session.commit()
+            flash("Request rejected.", "danger")
+
+        return redirect(url_for('faculty.approve_request'))
+
+    return render_template("basic/approve_request.html")
+
+
+@faculty_bp.route("/faculty/hod_approve_request", methods=["GET", "POST"])
+def hod_approve_request():
+    if request.method == "POST":
+        request_id = request.form.get("request_id")
+        otp = request.form.get("otp")
+
+        # Redis keys for tracking failed attempts
+        failed_attempts_key = f"failed_attempts_request_{request_id}"
+        cooldown_key = f"cooldown_request_{request_id}"
+
+        # Check if the request is in cooldown
+        cooldown_end = redis_client.get(cooldown_key)
+        if cooldown_end:
+            cooldown_end = datetime.strptime(cooldown_end.decode(), "%Y-%m-%d %H:%M:%S")
+            if datetime.utcnow() < cooldown_end:
+                remaining_time = (cooldown_end - datetime.utcnow()).seconds
+                flash(f"Too many failed attempts. Please try again after {remaining_time} seconds.", "danger")
+                return redirect(url_for('faculty.hod_approve_request'))
+
+        # Verify the OTP
+        request_entry = ProjectAccommodationRequest.query.get(request_id)
+        if not request_entry or request_entry.otp != otp:
+            # Increment failed attempts
+            failed_attempts = redis_client.incr(failed_attempts_key)
+            redis_client.expire(failed_attempts_key, 300)  # Expire failed attempts after 5 minutes
+
+            if failed_attempts >= 3:
+                # Set cooldown period of 2 minutes
+                cooldown_end = datetime.utcnow() + timedelta(minutes=2)
+                redis_client.set(cooldown_key, cooldown_end.strftime("%Y-%m-%d %H:%M:%S"))
+                redis_client.expire(cooldown_key, 120)  # Cooldown expires after 2 minutes
+                flash("Too many failed attempts. Please try again after 2 minutes.", "danger")
+            else:
+                flash(f"Invalid OTP. You have {3 - failed_attempts} attempts remaining.", "danger")
+
+            return redirect(url_for('faculty.hod_approve_request'))
+
+        # Reset failed attempts on success
+        redis_client.delete(failed_attempts_key)
+        redis_client.delete(cooldown_key)
+
+        if request.form.get("action") == "approve":
+            request_entry.status = "Pending approval from AR (HM)"
+            db.session.commit()
+            flash("Request approved and forwarded to AR (HM).", "success")
+        elif request.form.get("action") == "reject":
+            request_entry.status = "Rejected by HOD"
+            db.session.commit()
+            flash("Request rejected by HOD.", "danger")
+
+        return redirect(url_for('faculty.hod_approve_request'))
+
+    return render_template("basic/hod_approve_request.html")

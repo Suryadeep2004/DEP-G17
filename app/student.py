@@ -17,6 +17,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.lib.units import inch
 from sqlalchemy.sql import func
 
+from random import randint
+
 student_bp = Blueprint("student", __name__)
 
 @student_bp.route("/student", methods=["GET"])
@@ -773,6 +775,105 @@ def project_accommodation_request_form():
 
     return render_template("student/project_accommodation_request_form.html")
 
+# @student_bp.route("/student/submit_project_accommodation_request", methods=["POST"])
+# def submit_project_accommodation_request():
+#     if 'user_id' not in session or session.get('user_role') != 'student':
+#         return redirect(url_for('auth.login'))
+
+#     user_id = session['user_id']
+#     faculty_email = request.form.get('faculty_email')
+#     address = request.form.get('address')
+#     stay_from = request.form.get('stay_from')
+#     stay_to = request.form.get('stay_to')
+#     category = request.form.get('category')
+#     arrival_date = request.form.get('arrival_date')
+#     arrival_time = request.form.get('arrival_time')
+#     departure_date = request.form.get('departure_date')
+#     departure_time = request.form.get('departure_time')
+#     remarks = request.form.get('remarks')
+
+#     # Convert date strings to Python date objects
+#     stay_from = datetime.strptime(stay_from, '%Y-%m-%d').date()
+#     stay_to = datetime.strptime(stay_to, '%Y-%m-%d').date()
+#     arrival_date = datetime.strptime(arrival_date, '%Y-%m-%d').date()
+#     departure_date = datetime.strptime(departure_date, '%Y-%m-%d').date()
+
+#     # Convert time strings to Python time objects
+#     arrival_time = datetime.strptime(arrival_time, '%H:%M').time()
+#     departure_time = datetime.strptime(departure_time, '%H:%M').time()
+
+#     # Handle file uploads
+#     offer_letter = request.files['offer_letter']
+#     id_proof = request.files['id_proof']
+
+#     uploads_dir = os.path.join(os.getcwd(), 'uploads')
+#     if not os.path.exists(uploads_dir):
+#         os.makedirs(uploads_dir)
+
+#     offer_letter_path = os.path.join(uploads_dir, secure_filename(offer_letter.filename))
+#     id_proof_path = os.path.join(uploads_dir, secure_filename(id_proof.filename))
+
+#     offer_letter.save(offer_letter_path)
+#     id_proof.save(id_proof_path)
+
+#     # Resolve faculty_id from faculty_email using CustomUser
+#     faculty_user = CustomUser.query.filter_by(email=faculty_email).first()
+#     if not faculty_user:
+#         flash("Faculty with the provided email does not exist.", "danger")
+#         return redirect(url_for('student.project_accommodation_request_form'))
+
+#     faculty = Faculty.query.filter_by(faculty_id=faculty_user.id).first()
+#     if not faculty:
+#         flash("The provided email does not belong to a faculty member.", "danger")
+#         return redirect(url_for('student.project_accommodation_request_form'))
+
+#     # Create a new ProjectAccommodationRequest entry
+#     request_entry = ProjectAccommodationRequest(
+#         applicant_id=user_id,
+#         faculty_id=faculty.faculty_id,
+#         address=address,
+#         stay_from=stay_from,
+#         stay_to=stay_to,
+#         category=category,
+#         arrival_date=arrival_date,
+#         arrival_time=arrival_time,
+#         departure_date=departure_date,
+#         departure_time=departure_time,
+#         offer_letter_path=offer_letter_path,
+#         id_proof_path=id_proof_path,
+#         remarks=remarks,
+#         status="Pending approval from Faculty"
+#     )
+
+#     db.session.add(request_entry)
+#     db.session.commit()
+
+#     # Send email to the faculty
+#     msg = Message(
+#         "New Project Accommodation Request for Approval",
+#         sender="your-email@example.com",  # Replace with your email
+#         recipients=[faculty_email]
+#     )
+#     msg.body = (
+#         f"Dear {faculty_user.name},\n\n"
+#         f"A new project accommodation request has been submitted by {request_entry.applicant.name}.\n\n"
+#         f"Details:\n"
+#         f"Address: {address}\n"
+#         f"Stay From: {stay_from}\n"
+#         f"Stay To: {stay_to}\n"
+#         f"Category: {category}\n"
+#         f"Arrival Date: {arrival_date}\n"
+#         f"Departure Date: {departure_date}\n"
+#         f"Remarks: {remarks or 'N/A'}\n\n"
+#         f"To approve or reject this request, please reply to this email with either:\n"
+#         f"'Faculty Approves Request #{request_entry.id}' or 'Faculty Rejects Request #{request_entry.id}'.\n\n"
+#         f"Thank you!"
+#     )
+#     mail.send(msg)
+
+#     flash("Project Accommodation Request submitted successfully. An email has been sent to the faculty for approval.", "success")
+#     return redirect(url_for('student.profile'))
+
 @student_bp.route("/student/submit_project_accommodation_request", methods=["POST"])
 def submit_project_accommodation_request():
     if 'user_id' not in session or session.get('user_role') != 'student':
@@ -800,21 +901,7 @@ def submit_project_accommodation_request():
     arrival_time = datetime.strptime(arrival_time, '%H:%M').time()
     departure_time = datetime.strptime(departure_time, '%H:%M').time()
 
-    # Handle file uploads
-    offer_letter = request.files['offer_letter']
-    id_proof = request.files['id_proof']
-
-    uploads_dir = os.path.join(os.getcwd(), 'uploads')
-    if not os.path.exists(uploads_dir):
-        os.makedirs(uploads_dir)
-
-    offer_letter_path = os.path.join(uploads_dir, secure_filename(offer_letter.filename))
-    id_proof_path = os.path.join(uploads_dir, secure_filename(id_proof.filename))
-
-    offer_letter.save(offer_letter_path)
-    id_proof.save(id_proof_path)
-
-    # Resolve faculty_id from faculty_email using CustomUser
+    # Fetch the faculty user from the database
     faculty_user = CustomUser.query.filter_by(email=faculty_email).first()
     if not faculty_user:
         flash("Faculty with the provided email does not exist.", "danger")
@@ -824,6 +911,9 @@ def submit_project_accommodation_request():
     if not faculty:
         flash("The provided email does not belong to a faculty member.", "danger")
         return redirect(url_for('student.project_accommodation_request_form'))
+
+    # Generate a 10-digit OTP
+    otp = str(randint(1000000000, 9999999999))
 
     # Create a new ProjectAccommodationRequest entry
     request_entry = ProjectAccommodationRequest(
@@ -837,16 +927,32 @@ def submit_project_accommodation_request():
         arrival_time=arrival_time,
         departure_date=departure_date,
         departure_time=departure_time,
-        offer_letter_path=offer_letter_path,
-        id_proof_path=id_proof_path,
         remarks=remarks,
-        status="Pending approval from Faculty"
+        status="Pending approval from Faculty",
+        otp=otp
     )
 
     db.session.add(request_entry)
     db.session.commit()
 
-    flash("Project Accommodation Request submitted successfully.", "success")
+    # Send email to the faculty
+    msg = Message(
+        "New Project Accommodation Request for Approval",
+        sender="your-email@example.com",  # Replace with your email
+        recipients=[faculty_email]
+    )
+    msg.body = (
+        f"Dear {faculty_user.name},\n\n"
+        f"A new project accommodation request has been submitted by a student.\n\n"
+        f"Request ID: {request_entry.id}\n"
+        f"OTP: {otp}\n\n"
+        f"To approve or reject this request, please visit the following link:\n"
+        f"{url_for('faculty.approve_request', _external=True)}\n\n"
+        f"Thank you!"
+    )
+    mail.send(msg)
+
+    flash("Project Accommodation Request submitted successfully. An email has been sent to the faculty for approval.", "success")
     return redirect(url_for('student.profile'))
 
 @student_bp.route("/student/project_accommodation_status", methods=["GET"])

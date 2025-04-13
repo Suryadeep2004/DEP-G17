@@ -7,3 +7,5 @@ Werkzeug==2.1.1
 SQLAlchemy==1.4.32
 reportlab==3.6.12
 PyPDF2
+Celery
+Redis

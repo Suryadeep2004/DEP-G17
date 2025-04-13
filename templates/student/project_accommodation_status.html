@@ -30,17 +30,19 @@
                     ] %}
                     {% set step_names = ['Faculty', 'HOD', 'AR (HM)', 'Chief Warden', 'Caretaker'] %}
                     {% set status_index = STATUS_FLOW.index(request.status) if request.status in STATUS_FLOW else -1 %}
+                    {% set rejected_index = step_names.index(request.status.replace('Rejected by ', '')) if 'Rejected by' in request.status else -1 %}
 
                     {% for step_name in step_names %}
+                        {% set i = loop.index0 %}
                         <div class="step 
-                            {% if request.status == 'Rejected by ' ~ step_name %}
-                                rejected
-                            {% elif loop.index0 < status_index %}
-                                completed
-                            {% elif loop.index0 == status_index %}
-                                pending
+                            {% if rejected_index != -1 %}
+                                {% if i < rejected_index %}completed
+                                {% elif i == rejected_index %}rejected
+                                {% else %}normal{% endif %}
                             {% else %}
-                                normal
+                                {% if i < status_index %}completed
+                                {% elif i == status_index %}pending
+                                {% else %}normal{% endif %}
                             {% endif %}
                         ">
                             <div class="circle">{{ loop.index }}</div>
@@ -49,7 +51,6 @@
                     {% endfor %}
                 </div>
 
-                <!-- Rejection Note -->
                 {% if 'Rejected' in request.status %}
                 <p class="text-danger mt-3">
                     <strong>Note:</strong> This request was {{ request.status }}.
@@ -64,7 +65,7 @@
     {% endif %}
 </div>
 
-<!-- Modal for Viewing PDF -->
+<!-- Modal -->
 <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -96,7 +97,6 @@
         position: relative;
         margin: 20px 0;
     }
-
     .stepper::before {
         content: '';
         position: absolute;
@@ -107,13 +107,11 @@
         background-color: #e0e0e0;
         z-index: 0;
     }
-
     .step {
         position: relative;
         z-index: 1;
         text-align: center;
     }
-
     .step .circle {
         width: 40px;
         height: 40px;
@@ -127,23 +125,18 @@
         font-size: 18px;
         margin: 0 auto;
     }
-
     .step.completed .circle {
         background-color: #4caf50;
     }
-
     .step.rejected .circle {
         background-color: #f44336;
     }
-
     .step.pending .circle {
         background-color: #ff9800;
     }
-
     .step.normal .circle {
         background-color: #e0e0e0;
     }
-
     .step p {
         margin-top: 10px;
         font-size: 14px;

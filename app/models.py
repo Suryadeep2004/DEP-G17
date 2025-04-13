@@ -205,6 +205,7 @@ class ProjectAccommodationRequest(db.Model):
     remarks = db.Column(db.Text)
     hostel_allotted = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='SET NULL'))
     status = db.Column(db.String(50))
+    otp = db.Column(db.String(10))  # New column for OTP
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     applicant = db.relationship('CustomUser', backref=db.backref('project_accommodation_requests', cascade='all, delete-orphan'))
