@@ -32,13 +32,18 @@
                         <button class="btn btn-info btn-sm mb-2" onclick="viewPDF('{{ booking.id }}')">View PDF</button>
 
                         <!-- Approve/Reject Buttons -->
-                        <form method="POST" action="{{ url_for('admin.handle_guest_room_booking', booking_id=booking.id) }}" class="d-inline">
+                        <form method="POST"
+                            action="{{ url_for('admin.handle_guest_room_booking', booking_id=booking.id) }}"
+                            class="d-inline">
                             {% if admin.designation in ["Assistant Registrar (HM)", "Chief Warden"] %}
-                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Accept</button>
+                            <button type="submit" name="action" value="approve"
+                                class="btn btn-success btn-sm mb-2">Accept</button>
                             {% else %}
-                            <button type="button" class="btn btn-success btn-sm mb-2" onclick="openAllocateModal('{{ booking.id }}')">Allocate</button>
+                            <button type="button" class="btn btn-success btn-sm mb-2"
+                                onclick="openAllocateModal('{{ booking.id }}')">Allocate</button>
                             {% endif %}
-                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm mb-2">Reject</button>
+                            <button type="submit" name="action" value="reject"
+                                class="btn btn-danger btn-sm mb-2">Reject</button>
                         </form>
                     </td>
                 </tr>
@@ -113,6 +118,7 @@
                     roomContainer.innerHTML = ''; // Clear previous rooms
 
                     data.forEach(room => {
+                        console.log(`Room ${room.room_no}: is_booked = ${room.is_booked}`); // Debugging log
                         const roomBox = document.createElement('div');
                         roomBox.className = `room-box ${room.is_booked ? 'bg-danger' : 'bg-success'} text-white p-3 rounded`;
                         roomBox.style.cursor = room.is_booked ? 'not-allowed' : 'pointer';
@@ -121,9 +127,13 @@
 
                         if (!room.is_booked) {
                             roomBox.addEventListener('click', () => {
+                                // Remove 'selected' class from all room boxes
                                 document.querySelectorAll('.room-box').forEach(box => box.classList.remove('selected'));
+                                // Add 'selected' class to the clicked room box
                                 roomBox.classList.add('selected');
+                                // Set the selected room ID in the hidden input field
                                 document.getElementById('selectedRoomId').value = room.room_no;
+                                // Enable the confirm allocation button
                                 document.getElementById('confirmAllocation').disabled = false;
                             });
                         }
@@ -153,6 +163,15 @@
         line-height: 100px;
         margin: 5px;
         cursor: pointer;
+        border-radius: 5px;
+    }
+
+    .room-box.bg-danger {
+        background-color: red;
+    }
+
+    .room-box.bg-success {
+        background-color: green;
     }
 
     .room-box.selected {

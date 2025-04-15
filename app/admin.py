@@ -506,6 +506,7 @@ def guest_room_booking_approvals():
     if admin is None or admin.designation not in ['JA (HM)', 'Assistant Registrar (HM)', 'Chief Warden']:
         return redirect(url_for('auth.login'))
 
+    # Fetch all pending bookings based on the admin's designation
     if admin.designation == 'JA (HM)':
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from JA (HM)').all()
     elif admin.designation == 'Assistant Registrar (HM)':
@@ -513,8 +514,28 @@ def guest_room_booking_approvals():
     elif admin.designation == 'Chief Warden':
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
 
-    return render_template("admin/guest_room_booking_approvals.html", bookings=bookings, admin=admin)
+    # Fetch all hostels and check for room availability
+    hostels = Hostel.query.all()
+    for hostel in hostels:
+        hostel.is_conflicted = False  # Add a flag to indicate conflict
+        for booking in bookings:
+            # Check if the hostel is already allocated for overlapping dates
+            allocated_bookings = GuestRoomBooking.query.filter(
+                GuestRoomBooking.hostel_no == hostel.hostel_no,
+                GuestRoomBooking.date_departure >= booking.date_arrival,
+                GuestRoomBooking.date_arrival <= booking.date_departure
+            ).all()
 
+            if allocated_bookings:
+                hostel.is_conflicted = True
+                break
+
+    return render_template(
+        "admin/guest_room_booking_approvals.html",
+        bookings=bookings,
+        admin=admin,
+        hostels=hostels
+    )
 
 @admin_bp.route("/admin/handle_guest_room_booking/<int:booking_id>", methods=["POST"])
 def handle_guest_room_booking(booking_id):
@@ -540,7 +561,7 @@ def handle_guest_room_booking(booking_id):
                 # Allocate hostel with available guest rooms
                 available_hostels = Hostel.query.filter(Hostel.guest_rooms > 0).all()
                 if available_hostels:
-                    booking.status = 'Approved'
+                    # booking.status = 'Approved'
                     booking.hostel_no = available_hostels[0].hostel_no
                     available_hostels[0].guest_rooms -= 1
                 else:
@@ -561,6 +582,7 @@ def handle_guest_room_booking(booking_id):
         flash("Booking not found.", "danger")
 
     return redirect(url_for('admin.guest_room_booking_approvals'))
+
 
 @admin_bp.route("/admin/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
 def admin_view_guest_room_booking_pdf(booking_id):
@@ -939,15 +961,35 @@ def get_room_availability(booking_id):
         return jsonify({"error": "Booking not found"}), 404
 
     # Fetch all guest rooms associated with hostels
-    guest_rooms = Room.query.join(Hostel, Room.hostel_no == Hostel.hostel_no).filter(Hostel.guest_rooms > 0).all()
+    guest_rooms = Room.query.join(Hostel, Room.hostel_no == Hostel.hostel_no).all()
+
+    # Fetch all bookings up to the current booking ID
+    all_bookings = GuestRoomBooking.query.filter(GuestRoomBooking.id <= booking_id).all()
 
     # Prepare the response with all guest rooms
     rooms = []
     for room in guest_rooms:
+        print(f"Checking room {room.room_no} for overlapping bookings...")  # Debugging log
+
+        # Check for overlapping bookings manually
+        is_booked = False
+        for b in all_bookings:
+            print(f"{b.room_no},{room.room_no}")
+            if (
+                b.status == "Approved" and  # Only consider approved bookings
+                b.room_no == room.room_no and  # Check if the room number matches
+                b.date_departure == booking.date_departure and  # Overlapping condition
+                b.date_arrival == booking.date_arrival and  # Overlapping condition
+                b.date_departure >= datetime.now().date()  # Only consider future bookings
+            ):
+                is_booked = True
+                print(f"Room {b.room_no} is booked due to overlapping booking ID: {b.id}")
+                break
+               
         rooms.append({
-            "room_id": room.room_no,  # Ensure room_no is included
-            "room_no": room.room_no,  # Include room_no explicitly
-            "is_booked": False  # Example logic for availability
+            "room_id": room.room_no,
+            "room_no": room.room_no,
+            "is_booked": is_booked
         })
 
     return jsonify(rooms)
@@ -983,9 +1025,12 @@ def allocate_room():
     if admin.designation == "JA (HM)":
         booking.status = "Pending approval from Assistant Registrar (HM)"
         booking.remarks = remark  # Save the remark
+        booking.room_no = room.room_no
+        print(f"Room {room.room_no} allocated by JA (HM) for booking ID {booking_id}.")
     elif admin.designation == "Assistant Registrar (HM)":
         booking.status = "Pending approval from Chief Warden"
         booking.remarks = remark  # Save the remark
+        booking.room_no = room.room_no
     elif admin.designation == "Chief Warden":
         # Allocate the room and finalize the booking
         booking.room_no = room.room_no
