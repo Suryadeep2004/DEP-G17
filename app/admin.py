@@ -18,6 +18,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from PyPDF2 import PdfReader, PdfWriter
 from sqlalchemy.sql import func
+from app.models import Room, Hostel 
+from flask import jsonify
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -508,8 +510,11 @@ def guest_room_booking_approvals():
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from JA (HM)').all()
     elif admin.designation == 'Assistant Registrar (HM)':
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Assistant Registrar (HM)').all()
+    elif admin.designation == 'Chief Warden':
+        bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
 
     return render_template("admin/guest_room_booking_approvals.html", bookings=bookings, admin=admin)
+
 
 @admin_bp.route("/admin/handle_guest_room_booking/<int:booking_id>", methods=["POST"])
 def handle_guest_room_booking(booking_id):
@@ -917,3 +922,80 @@ def view_project_accommodation_pdf(request_id):
         download_name="project_accommodation_request.pdf",
         as_attachment=False  # This ensures the PDF is displayed inline
     )
+
+@admin_bp.route('/admin/add_remark/<int:booking_id>', methods=['POST'])
+def add_remark(booking_id):
+    remark = request.form.get('remark')
+    # Save the remark to the database or process it as needed
+    flash(f'Remark added for booking ID {booking_id}: {remark}', 'success')
+    return redirect(url_for('admin.guest_room_booking_approvals'))
+
+@admin_bp.route("/admin/get_room_availability/<int:booking_id>", methods=["GET"])
+def get_room_availability(booking_id):
+    print(f"Fetching room availability for booking ID: {booking_id}")
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking:
+        print(f"Booking ID {booking_id} not found in the database.")
+        return jsonify({"error": "Booking not found"}), 404
+
+    # Fetch all guest rooms associated with hostels
+    guest_rooms = Room.query.join(Hostel, Room.hostel_no == Hostel.hostel_no).filter(Hostel.guest_rooms > 0).all()
+
+    # Prepare the response with all guest rooms
+    rooms = []
+    for room in guest_rooms:
+        rooms.append({
+            "room_id": room.room_no,  # Ensure room_no is included
+            "room_no": room.room_no,  # Include room_no explicitly
+            "is_booked": False  # Example logic for availability
+        })
+
+    return jsonify(rooms)
+
+
+@admin_bp.route("/admin/allocate_room", methods=["POST"])
+def allocate_room():
+    booking_id = request.form.get("booking_id")
+    room_id = request.form.get("room_id")
+    remark = request.form.get("remark")
+
+    # Fetch the booking and room
+    booking = GuestRoomBooking.query.get(booking_id)
+    room = Room.query.get(room_id)
+
+    if not booking:
+        flash("Booking not found.", "danger")
+        return redirect(url_for("admin.guest_room_booking_approvals"))
+
+    if not room:
+        flash("Room not found.", "danger")
+        return redirect(url_for("admin.guest_room_booking_approvals"))
+
+    # Get the logged-in admin
+    user_id = session.get("user_id")
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin:
+        flash("Admin not found.", "danger")
+        return redirect(url_for("auth.login"))
+
+    # Handle approval logic based on admin designation
+    if admin.designation == "JA (HM)":
+        booking.status = "Pending approval from Assistant Registrar (HM)"
+        booking.remarks = remark  # Save the remark
+    elif admin.designation == "Assistant Registrar (HM)":
+        booking.status = "Pending approval from Chief Warden"
+        booking.remarks = remark  # Save the remark
+    elif admin.designation == "Chief Warden":
+        # Allocate the room and finalize the booking
+        booking.room_no = room.room_no
+        booking.status = "Approved"
+        booking.remarks = remark  # Save the remark
+        room.is_booked = True  # Mark the room as booked
+    else:
+        flash("You do not have permission to approve this booking.", "danger")
+        return redirect(url_for("admin.guest_room_booking_approvals"))
+
+    db.session.commit()
+    flash(f"Booking ID {booking_id} updated successfully.", "success")
+    return redirect(url_for("admin.guest_room_booking_approvals"))

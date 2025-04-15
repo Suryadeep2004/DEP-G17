@@ -167,6 +167,7 @@ class GuestRoomBooking(db.Model):
     __tablename__ = 'guest_room_booking'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     applicant_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), nullable=False)
+    room_no = db.Column(db.String(20), db.ForeignKey('room.room_no', ondelete='SET NULL'))  # Add this field
     total_guests = db.Column(db.Integer, nullable=False)
     guests_male = db.Column(db.Integer, nullable=False)
     guests_female = db.Column(db.Integer, nullable=False)
@@ -189,6 +190,7 @@ class GuestRoomBooking(db.Model):
 
     applicant = db.relationship('CustomUser', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
     hostel = db.relationship('Hostel', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
+    room = db.relationship('Room', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))  # Add this relationship
 
 class ProjectAccommodationRequest(db.Model):
     __tablename__ = 'project_accommodation_request'

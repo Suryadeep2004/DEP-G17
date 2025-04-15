@@ -13,6 +13,7 @@
                     <th>Arrival</th>
                     <th>Departure</th>
                     <th>Status</th>
+                    <th>Remarks</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -25,13 +26,18 @@
                     <td>{{ booking.date_arrival }} {{ booking.time_arrival }}</td>
                     <td>{{ booking.date_departure }} {{ booking.time_departure }}</td>
                     <td>{{ booking.status }}</td>
+                    <td>{{ booking.remarks or "No remarks available." }}</td>
                     <td>
                         <!-- View PDF Button -->
-                        <button class="btn btn-info btn-sm mb-2" onclick="viewPDF({{ booking.id }})">View PDF</button>
-                        
+                        <button class="btn btn-info btn-sm mb-2" onclick="viewPDF('{{ booking.id }}')">View PDF</button>
+
                         <!-- Approve/Reject Buttons -->
                         <form method="POST" action="{{ url_for('admin.handle_guest_room_booking', booking_id=booking.id) }}" class="d-inline">
-                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Approve</button>
+                            {% if admin.designation in ["Assistant Registrar (HM)", "Chief Warden"] %}
+                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Accept</button>
+                            {% else %}
+                            <button type="button" class="btn btn-success btn-sm mb-2" onclick="openAllocateModal('{{ booking.id }}')">Allocate</button>
+                            {% endif %}
                             <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm mb-2">Reject</button>
                         </form>
                     </td>
@@ -57,6 +63,30 @@
     </div>
 </div>
 
+<!-- Modal for Allocation -->
+<div class="modal fade" id="allocateModal" tabindex="-1" aria-labelledby="allocateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="allocateModalLabel">Allocate Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="roomContainer" class="d-flex flex-wrap gap-3">
+                    <!-- Rooms will be dynamically loaded here -->
+                </div>
+                <form id="allocateForm" method="POST" action="{{ url_for('admin.allocate_room') }}">
+                    <input type="hidden" name="booking_id" id="allocateBookingId">
+                    <input type="hidden" name="room_id" id="selectedRoomId">
+                    <textarea name="remark" class="form-control mt-3" placeholder="Enter remark (optional)"></textarea>
+                    <button type="submit" class="btn btn-success mt-3" disabled id="confirmAllocation">Confirm</button>
+                    <button type="button" class="btn btn-secondary mt-3" data-bs-dismiss="modal">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     function viewPDF(bookingId) {
         const pdfUrl = `/admin/view_guest_room_booking_pdf/${bookingId}`;
@@ -64,5 +94,69 @@
         const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
         pdfModal.show();
     }
+
+    function openAllocateModal(bookingId) {
+        // Set the booking ID in the hidden input field
+        document.getElementById('allocateBookingId').value = bookingId;
+
+        // Fetch room availability
+        fetch(`/admin/get_room_availability/${bookingId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (Array.isArray(data)) {
+                    const roomContainer = document.getElementById('roomContainer');
+                    roomContainer.innerHTML = ''; // Clear previous rooms
+
+                    data.forEach(room => {
+                        const roomBox = document.createElement('div');
+                        roomBox.className = `room-box ${room.is_booked ? 'bg-danger' : 'bg-success'} text-white p-3 rounded`;
+                        roomBox.style.cursor = room.is_booked ? 'not-allowed' : 'pointer';
+                        roomBox.textContent = `${room.room_no}`;
+                        roomBox.dataset.roomId = room.room_no;
+
+                        if (!room.is_booked) {
+                            roomBox.addEventListener('click', () => {
+                                document.querySelectorAll('.room-box').forEach(box => box.classList.remove('selected'));
+                                roomBox.classList.add('selected');
+                                document.getElementById('selectedRoomId').value = room.room_no;
+                                document.getElementById('confirmAllocation').disabled = false;
+                            });
+                        }
+
+                        roomContainer.appendChild(roomBox);
+                    });
+                } else {
+                    console.error('Unexpected data format:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching room availability:', error);
+                alert('Failed to fetch room availability. Please try again later.');
+            });
+
+        // Show the modal
+        const allocateModal = new bootstrap.Modal(document.getElementById('allocateModal'));
+        allocateModal.show();
+    }
 </script>
+
+<style>
+    .room-box {
+        width: 100px;
+        height: 100px;
+        text-align: center;
+        line-height: 100px;
+        margin: 5px;
+        cursor: pointer;
+    }
+
+    .room-box.selected {
+        border: 3px solid yellow;
+    }
+</style>
 {% endblock %}

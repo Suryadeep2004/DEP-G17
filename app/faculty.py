@@ -563,23 +563,15 @@ def handle_guest_room_booking(booking_id):
 
     if booking:
         if action == 'approve':
-            if booking.status == 'Pending approval from Chief Warden':
-                hostel_no = request.form.get('hostel_no')
-                hostel = Hostel.query.filter_by(hostel_no=hostel_no).first()
-                if hostel and hostel.guest_rooms > 0:
-                    booking.status = 'Approved'
-                    booking.hostel_no = hostel_no
-                    hostel.guest_rooms -= 1
-                    db.session.commit()
-                    flash("Booking approved and hostel allocated.", "success")
-                else:
-                    flash("Selected hostel does not have available guest rooms.", "danger")
-            else:
-                flash("Booking is not pending approval from Chief Warden.", "warning")
+            # Directly approve the booking without checking for available guest rooms
+            booking.status = 'Approved'
+            db.session.commit()
+            flash("Booking approved successfully.", "success")
         elif action == 'reject':
+            # Reject the booking
             booking.status = 'Rejected by Chief Warden'
             db.session.commit()
-            flash("Booking rejected.", "danger")
+            flash("Booking rejected successfully.", "danger")
     else:
         flash("Booking not found.", "danger")
 
