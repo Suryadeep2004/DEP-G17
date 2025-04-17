@@ -45,6 +45,7 @@
                             <button type="submit" name="action" value="reject"
                                 class="btn btn-danger btn-sm mb-2">Reject</button>
                         </form>
+                        <button class="btn btn-primary btn-sm mb-2" onclick="openMessageModal('{{ booking.id }}', '{{ booking.student_email }}')">Send Message</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -91,6 +92,40 @@
         </div>
     </div>
 </div>
+
+<!-- Message Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="messageModalLabel">Send Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.send_message') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="booking_id" id="messageBookingId">
+                    <input type="hidden" name="student_email" id="messageStudentEmail">
+                    <div class="mb-3">
+                        <label for="messageContent" class="form-label">Message</label>
+                        <textarea class="form-control" id="messageContent" name="message_content" rows="4" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openMessageModal(bookingId, studentEmail) {
+        document.getElementById('messageBookingId').value = bookingId;
+        document.getElementById('messageStudentEmail').value = studentEmail;
+        const modal = new bootstrap.Modal(document.getElementById('messageModal'));
+        modal.show();
+    }
+</script>
 
 <script>
     function viewPDF(bookingId) {

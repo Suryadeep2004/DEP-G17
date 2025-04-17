@@ -221,3 +221,13 @@ class Guest(db.Model):
     guest_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), primary_key=True)
     phone = db.Column(db.String(15))
     address = db.Column(db.String(255))
+
+
+class Notification(db.Model):
+    __tablename__ = 'notification'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    sender_email = db.Column(db.String(120), nullable=False)  # Email of the sender
+    recipient_email = db.Column(db.String(120), nullable=False)  # Email of the recipient
+    content = db.Column(db.Text, nullable=False)  # Message content
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # Timestamp of the notification
+    is_read = db.Column(db.Boolean, default=False)  # New field to track read status

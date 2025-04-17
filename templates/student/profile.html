@@ -16,7 +16,6 @@
                     </div>
                 </div>
                 
-
                 <!-- User Details -->
                 <div class="col-md-6">
                     <div class="card p-4 shadow-sm h-100"> <!-- h-100 ensures same height -->
@@ -31,4 +30,156 @@
         </div>
     </div>
 </div>
+
+<!-- Notification Bell in Top-Right Corner -->
+<div class="notification-container">
+    <div class="dropdown">
+        <a class="btn btn-light dropdown-toggle notification-bell" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-bell"></i> <!-- Bootstrap bell icon -->
+            {% if notifications|length > 0 %}
+                <span class="badge bg-danger">{{ notifications|length }}</span>
+            {% endif %}
+        </a>
+        <div class="dropdown-menu notification-bar" id="notificationBar" aria-labelledby="notificationDropdown">
+            {% if notifications|length > 0 %}
+                <ul class="list-unstyled px-3">
+                    {% for notification in notifications %}
+                        <li class="mb-2">
+                            <i class="bi bi-dot"></i> <!-- Bootstrap dot icon -->
+                            {{ notification.content }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="text-muted text-center py-2">No notifications</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic Message Block -->
+{% if has_new_notifications %}
+<div id="dynamicMessage" class="alert alert-info notification-alert" role="alert">
+    <strong>New Message!</strong> Please click on the bell icon to view your notifications.
+</div>
+{% endif %}
+
+<!-- Add styles for the dynamic message -->
+<style>
+.notification-alert {
+    position: absolute;
+    top: 140px;
+    right: 20px;
+    z-index: 1050;
+    animation: fadeIn 1s ease-in-out;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
+<!-- Add styles for the notification bar -->
+<style>
+.notification-container {
+    position: fixed;
+    top: 100px; /* Add spacing from the top */
+    right: 20px; /* Add spacing from the right */
+    z-index: 1050; /* Ensure it appears above other elements */
+}
+
+.notification-bell {
+    position: relative;
+    font-size: 1.5rem;
+}
+
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.75rem;
+}
+
+.notification-bar {
+    position: absolute;
+    top: 50px; /* Position below the bell icon */
+    right: 0;
+    width: 400px; /* Increased width for larger messages */
+    max-height: 300px; /* Increased height for larger messages */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    background-color: #ffffff;
+    z-index: 1051; /* Ensure it overlaps other elements */
+    display: none; /* Initially hidden */
+    transition: width 0.3s ease, height 0.3s ease; /* Smooth transition for resizing */
+}
+
+.notification-bar ul {
+    margin: 0;
+    padding: 0;
+}
+
+.notification-bar li {
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    padding: 8px;
+    border-bottom: 1px solid #f1f1f1;
+    word-wrap: break-word; /* Ensure long messages wrap */
+}
+
+.notification-bar li:last-child {
+    border-bottom: none;
+}
+
+.notification-bar li i {
+    color: #007bff;
+    margin-right: 10px;
+}
+</style>
+
+<!-- Add JavaScript to handle the click event -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const bellIcon = document.getElementById("notificationDropdown");
+    const dynamicMessage = document.getElementById("dynamicMessage");
+    const notificationBar = document.getElementById("notificationBar");
+
+    if (bellIcon) {
+        bellIcon.addEventListener("click", function () {
+            // Toggle the visibility of the notification bar
+            if (notificationBar.style.display === "none" || notificationBar.style.display === "") {
+                notificationBar.style.display = "block";
+
+                // Dynamically adjust the size of the notification bar
+                const maxMessages = 5; // Number of messages to display without scrolling
+                const messageHeight = 50; // Approximate height of each message in pixels
+                const padding = 30; // Additional padding for the bar
+                const totalHeight = Math.min(maxMessages * messageHeight + padding, 500); // Cap the height at 300px
+                notificationBar.style.height = `${totalHeight}px`;
+                notificationBar.style.width = "400px"; // Set a fixed width
+            } else {
+                notificationBar.style.display = "none";
+            }
+
+            // Hide the dynamic message when the bell icon is clicked
+            if (dynamicMessage) {
+                dynamicMessage.style.display = "none";
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

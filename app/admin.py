@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel
+from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification
 import csv
 import io
 from io import BytesIO
@@ -20,6 +20,8 @@ from PyPDF2 import PdfReader, PdfWriter
 from sqlalchemy.sql import func
 from app.models import Room, Hostel 
 from flask import jsonify
+from flask_mail import Message
+from app import mail
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -1044,3 +1046,75 @@ def allocate_room():
     db.session.commit()
     flash(f"Booking ID {booking_id} updated successfully.", "success")
     return redirect(url_for("admin.guest_room_booking_approvals"))
+
+
+@admin_bp.route("/admin/send_message", methods=["POST"])
+def send_message():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    booking_id = request.form.get('booking_id')
+    message_content = request.form.get('message_content')
+
+    # Fetch the booking details
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking:
+        flash("Booking not found.", "danger")
+        return redirect(url_for('admin.guest_room_booking_approvals'))
+
+    # Fetch the student's email from the booking's applicant
+    student = Student.query.filter_by(student_id=booking.applicant_id).first()
+    if not student or not student.user.email:
+        flash("Student email not found.", "danger")
+        return redirect(url_for('admin.guest_room_booking_approvals'))
+
+    student_email = student.user.email
+
+    # Fetch the sender's email from the logged-in admin's profile
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+    if not admin or not admin.user.email:
+        flash("Unable to fetch sender's email. Please ensure your profile is complete.", "danger")
+        return redirect(url_for('admin.guest_room_booking_approvals'))
+
+    sender_email = admin.user.email  # Fetch the email from the admin's profile
+
+    # Save the message in the database
+    notification = Notification(
+        sender_email=sender_email,
+        recipient_email=student_email,
+        content=message_content,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(notification)
+    db.session.commit()
+
+    # Debugging log for email
+    print(f"Sending email to: {student_email}")
+
+    # Send the message via email
+    msg = Message(
+        "Message from JA(HM)",
+        sender=sender_email,  # Use the sender's email from the profile
+        recipients=[student_email]
+    )
+    msg.body = message_content
+    mail.send(msg)
+
+    flash("Message sent successfully and notification saved.", "success")
+    return redirect(url_for('admin.guest_room_booking_approvals'))
+
+
+@admin_bp.route("/admin/notifications", methods=["GET"])
+def view_notifications():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+    if not admin or not admin.user.email:
+        flash("Unable to fetch notifications. Please ensure your profile is complete.", "danger")
+        return redirect(url_for('admin.profile'))
+
+    notifications = Notification.query.filter_by(sender_email=admin.user.email).order_by(Notification.timestamp.desc()).all()
+    return render_template("admin/notifications.html", notifications=notifications)

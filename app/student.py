@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file, send_from_directory
-from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest, GuestRoomBooking, Warden, ProjectAccommodationRequest
+from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest, GuestRoomBooking, Warden, ProjectAccommodationRequest, Notification
 from werkzeug.utils import secure_filename
 from flask_mail import Message
 from app import mail  
@@ -32,8 +32,13 @@ def profile():
     if user is None or student is None:
         return redirect(url_for('auth.login'))
 
-    internship_application = InternshipApplication.query.filter_by(email=user.email).first()
-    return render_template("student/profile.html", user=user, student=student, internship_application=internship_application)
+    # Fetch notifications for the student
+    notifications = Notification.query.filter_by(recipient_email=user.email).order_by(Notification.timestamp.desc()).all()
+
+    # Check if there are any unread notifications
+    has_new_notifications = any(not notification.is_read for notification in notifications)
+
+    return render_template("student/profile.html", user=user, student=student, notifications=notifications, has_new_notifications=has_new_notifications)
 
 @student_bp.route("/student/update_profile", methods=["GET", "POST"])
 def update_profile():
