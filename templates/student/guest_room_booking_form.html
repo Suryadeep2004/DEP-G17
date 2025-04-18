@@ -2,7 +2,39 @@
 
 {% block content %}
 <div class="container">
-    <div class="card shadow-sm border-0">
+    <!-- Terms and Conditions Modal -->
+    <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger fw-bold">Please read the terms and conditions carefully before agreeing.</p>
+                    <ol>
+                        <li>Accommodation requests must be submitted at least four days in advance.</li>
+                        <li>Separate rooms are allotted for ladies and gents in hostels.</li>
+                        <li>A minimum one-day charge applies to all bookings unless canceled at least 48 hours before the scheduled start of occupancy. If a guest fails to check in on the booking date, the reservation will be canceled after one day.</li>
+                        <li>Not more than two persons will be allowed in each guest room.</li>
+                        <li>Booking is not permitted for guests undergoing medical treatment/advice and who are suffering from communicable diseases, are bedridden, or are under post-delivery care.</li>
+                        <li>In case of cancellation, one day will be calculated on a 24-hour basis, or part thereof, starting from the time of arrival.</li>
+                        <li>Pets/Dogs/Cats etc. are not allowed in the Guest Rooms.</li>
+                        <li>In case of emergency due to shortage of accommodation, a single occupant of the room may be asked to share the accommodation with another guest.</li>
+                        <li>Guests must vacate the hostel by 12:00 PM on their departure date. Failure to do so will result in an additional day's charge as per the rule.</li>
+                        <li>Guests are required to pay the charges in advance, except in cases where faculty or staff will cover the charges directly or through a project or departmental budget.</li>
+                    </ol>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="disagreeButton">Disagree</button>
+                    <button type="button" class="btn btn-primary" id="agreeButton">I Agree</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guest Room Booking Form -->
+    <div class="card shadow-sm border-0" id="formCard" style="display: none;">
         <div class="card-header bg-primary text-white">
             <h4 class="mb-0">Guest Room Booking Application</h4>
         </div>
@@ -106,36 +138,26 @@
         </div>
     </div>
 </div>
-<div class="col-md-6">
-    <label for="guest_contact" class="form-label">Guest Contact</label>
-    <input type="text" class="form-control" id="guest_contact" name="guest_contact" required>
-    <small id="phoneError" class="text-danger d-none">Phone number must be exactly 10 numeric digits.</small>
-</div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const phoneInput = document.getElementById("guest_contact");
-        const phoneError = document.getElementById("phoneError");
+        const termsModal = new bootstrap.Modal(document.getElementById("termsModal"));
+        const formCard = document.getElementById("formCard");
+        const agreeButton = document.getElementById("agreeButton");
+        const disagreeButton = document.getElementById("disagreeButton");
 
-        phoneInput.addEventListener("input", function () {
-            const phoneValue = phoneInput.value;
+        // Show the terms modal on page load
+        termsModal.show();
 
-            // Check if the phone number is exactly 10 digits and numeric
-            if (/^\d{10}$/.test(phoneValue)) {
-                phoneError.classList.add("d-none"); // Hide error message
-                phoneInput.classList.remove("is-invalid"); // Remove invalid styling
-                phoneInput.classList.add("is-valid"); // Add valid styling
-            } else {
-                phoneError.classList.remove("d-none"); // Show error message
-                phoneInput.classList.add("is-invalid"); // Add invalid styling
-                phoneInput.classList.remove("is-valid"); // Remove valid styling
-            }
+        // Handle "I Agree" button click
+        agreeButton.addEventListener("click", function () {
+            termsModal.hide();
+            formCard.style.display = "block"; // Show the form
         });
 
-        // Prevent non-numeric input
-        phoneInput.addEventListener("keypress", function (e) {
-            if (!/^\d$/.test(e.key)) {
-                e.preventDefault(); // Block non-numeric characters
-            }
+        // Handle "Disagree" button click
+        disagreeButton.addEventListener("click", function () {
+            window.location.href = "{{ url_for('student.profile') }}"; // Redirect to profile page
         });
     });
 </script>

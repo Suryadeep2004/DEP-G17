@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification
+from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification, Guest
 import csv
 import io
 from io import BytesIO
@@ -497,7 +497,8 @@ def download_application_pdf(application_id):
         mimetype='application/pdf'
     )
 
-@admin_bp.route("/admin/guest_room_booking_approvals", methods=["GET"])
+
+@admin_bp.route("/admin/guest_room_booking_approvals", methods=["GET", "POST"])
 def guest_room_booking_approvals():
     if 'user_id' not in session or session.get('user_role') != 'admin':
         return redirect(url_for('auth.login'))
@@ -508,36 +509,43 @@ def guest_room_booking_approvals():
     if admin is None or admin.designation not in ['JA (HM)', 'Assistant Registrar (HM)', 'Chief Warden']:
         return redirect(url_for('auth.login'))
 
-    # Fetch all pending bookings based on the admin's designation
+    # Fetch bookings based on the admin's designation
     if admin.designation == 'JA (HM)':
-        bookings = GuestRoomBooking.query.filter_by(status='Pending approval from JA (HM)').all()
+        bookings = GuestRoomBooking.query.filter(
+            GuestRoomBooking.status.in_([
+                'Awaiting Allocation from JA (HM)',
+                'Awaiting Payment from Applicant',
+                'Awaiting Payment Verification from JA (HM)'
+            ])
+        )
+        # Check for sort parameter
+        sort = request.args.get('sort', 'default')
+        if sort == 'Awaiting Allocation from JA (HM)':
+            bookings = GuestRoomBooking.query.filter(
+                GuestRoomBooking.status.in_([
+                    'Awaiting Allocation from JA (HM)'
+                ])
+            ).order_by(GuestRoomBooking.created_at.desc()).all()
+        elif sort == 'Awaiting Payment from Applicant':
+            bookings = GuestRoomBooking.query.filter(
+                GuestRoomBooking.status.in_([
+                    'Awaiting Payment from Applicant'
+                ])
+            ).order_by(GuestRoomBooking.created_at.desc()).all()
+        elif sort == 'Awaiting Payment Verification from JA (HM)':
+            bookings = GuestRoomBooking.query.filter(
+                GuestRoomBooking.status.in_([
+                    'Awaiting Payment Verification from JA (HM)'
+                ])
+            ).order_by(GuestRoomBooking.created_at.desc()).all()
     elif admin.designation == 'Assistant Registrar (HM)':
-        bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Assistant Registrar (HM)').all()
+        bookings = GuestRoomBooking.query.filter(
+            GuestRoomBooking.status.in_(['Pending approval from Assistant Registrar (HM)'])
+        ).all()
     elif admin.designation == 'Chief Warden':
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
 
-    # Fetch all hostels and check for room availability
-    hostels = Hostel.query.all()
-    for hostel in hostels:
-        hostel.is_conflicted = False  # Add a flag to indicate conflict
-        for booking in bookings:
-            # Check if the hostel is already allocated for overlapping dates
-            allocated_bookings = GuestRoomBooking.query.filter(
-                GuestRoomBooking.hostel_no == hostel.hostel_no,
-                GuestRoomBooking.date_departure >= booking.date_arrival,
-                GuestRoomBooking.date_arrival <= booking.date_departure
-            ).all()
-
-            if allocated_bookings:
-                hostel.is_conflicted = True
-                break
-
-    return render_template(
-        "admin/guest_room_booking_approvals.html",
-        bookings=bookings,
-        admin=admin,
-        hostels=hostels
-    )
+    return render_template("admin/guest_room_booking_approvals.html", bookings=bookings, admin=admin)
 
 @admin_bp.route("/admin/handle_guest_room_booking/<int:booking_id>", methods=["POST"])
 def handle_guest_room_booking(booking_id):
@@ -553,36 +561,28 @@ def handle_guest_room_booking(booking_id):
     action = request.form.get('action')
     booking = GuestRoomBooking.query.get(booking_id)
 
-    if booking:
-        if action == 'approve':
-            if admin.designation == 'JA (HM)':
-                booking.status = 'Pending approval from Assistant Registrar (HM)'
-            elif admin.designation == 'Assistant Registrar (HM)':
-                booking.status = 'Pending approval from Chief Warden'
-            elif admin.designation == 'Chief Warden':
-                # Allocate hostel with available guest rooms
-                available_hostels = Hostel.query.filter(Hostel.guest_rooms > 0).all()
-                if available_hostels:
-                    # booking.status = 'Approved'
-                    booking.hostel_no = available_hostels[0].hostel_no
-                    available_hostels[0].guest_rooms -= 1
-                else:
-                    flash("No available guest rooms in any hostel.", "danger")
-                    return redirect(url_for('admin.guest_room_booking_approvals'))
-            flash("Booking approved.", "success")
-        elif action == 'reject':
-            # Update the status to reflect who rejected the booking
-            if admin.designation == 'JA (HM)':
-                booking.status = 'Rejected by JA (HM)'
-            elif admin.designation == 'Assistant Registrar (HM)':
-                booking.status = 'Rejected by Assistant Registrar (HM)'
-            elif admin.designation == 'Chief Warden':
-                booking.status = 'Rejected by Chief Warden'
-            flash("Booking rejected.", "danger")
-        db.session.commit()
-    else:
+    if not booking:
         flash("Booking not found.", "danger")
+        return redirect(url_for('admin.guest_room_booking_approvals'))
 
+    if action == 'approve':
+        if admin.designation == 'JA (HM)' and booking.status == "Awaiting Allocation from JA (HM)": 
+            booking.status = "Awaiting Payment from Student"
+            flash("Room Allocated temporarily & Awaiting payment from Student.", "success")
+        elif admin.designation == 'JA (HM)' and booking.status == "Awaiting Payment Verification from JA (HM)":
+            booking.status = "Pending approval from Assistant Registrar (HM)"
+            flash("Payment verified by JA (HM). Forwarded to AR (HM) for approval.", "success")
+        elif admin.designation == 'Assistant Registrar (HM)' and booking.status == "Pending approval from Assistant Registrar (HM)":
+            booking.status = "Pending approval from Chief Warden"
+            flash("Forwarded to Chief Warden for approval.", "success")
+        elif admin.designation == 'Chief Warden' and booking.status == "Pending approval from Chief Warden":
+            booking.status = "Successful Approval"
+            flash("Booking approved by Chief Warden.", "success")
+    elif action == 'reject':
+        booking.status = f"Rejected by {admin.designation}"
+        flash(f"Booking rejected by {admin.designation}.", "danger")
+
+    db.session.commit()
     return redirect(url_for('admin.guest_room_booking_approvals'))
 
 
@@ -956,7 +956,6 @@ def add_remark(booking_id):
 
 @admin_bp.route("/admin/get_room_availability/<int:booking_id>", methods=["GET"])
 def get_room_availability(booking_id):
-    print(f"Fetching room availability for booking ID: {booking_id}")
     booking = GuestRoomBooking.query.get(booking_id)
     if not booking:
         print(f"Booking ID {booking_id} not found in the database.")
@@ -971,23 +970,22 @@ def get_room_availability(booking_id):
     # Prepare the response with all guest rooms
     rooms = []
     for room in guest_rooms:
-        print(f"Checking room {room.room_no} for overlapping bookings...")  # Debugging log
-
         # Check for overlapping bookings manually
         is_booked = False
         for b in all_bookings:
-            print(f"{b.room_no},{room.room_no}")
             if (
                 b.status == "Approved" and  # Only consider approved bookings
                 b.room_no == room.room_no and  # Check if the room number matches
-                b.date_departure == booking.date_departure and  # Overlapping condition
-                b.date_arrival == booking.date_arrival and  # Overlapping condition
+                (
+                    (b.date_arrival <= booking.date_departure and b.date_departure >= booking.date_arrival) or  # Overlapping dates
+                    (b.date_arrival <= booking.date_arrival and b.date_departure >= booking.date_departure)  # Fully overlapping
+                ) and
                 b.date_departure >= datetime.now().date()  # Only consider future bookings
             ):
                 is_booked = True
-                print(f"Room {b.room_no} is booked due to overlapping booking ID: {b.id}")
                 break
-               
+
+        # Add the room's availability status to the response
         rooms.append({
             "room_id": room.room_no,
             "room_no": room.room_no,
@@ -1023,30 +1021,43 @@ def allocate_room():
         flash("Admin not found.", "danger")
         return redirect(url_for("auth.login"))
 
-    # Handle approval logic based on admin designation
-    if admin.designation == "JA (HM)":
-        booking.status = "Pending approval from Assistant Registrar (HM)"
-        booking.remarks = remark  # Save the remark
-        booking.room_no = room.room_no
-        print(f"Room {room.room_no} allocated by JA (HM) for booking ID {booking_id}.")
-    elif admin.designation == "Assistant Registrar (HM)":
-        booking.status = "Pending approval from Chief Warden"
-        booking.remarks = remark  # Save the remark
-        booking.room_no = room.room_no
-    elif admin.designation == "Chief Warden":
-        # Allocate the room and finalize the booking
-        booking.room_no = room.room_no
-        booking.status = "Approved"
-        booking.remarks = remark  # Save the remark
-        room.is_booked = True  # Mark the room as booked
+    # Temporarily allocate the room and update the status
+    booking.room_no = room.room_no
+    booking.status = "Awaiting Payment from Applicant"
+    booking.remarks = remark  # Save the remark
+
+    # Notify the applicant (student or guest) to fill payment details
+    # Notify the applicant (student or guest) to fill payment details
+    applicant_email = None
+    student = Student.query.filter_by(student_id=booking.applicant_id).first()
+    if student and student.user.email:
+        applicant_email = student.user.email
     else:
-        flash("You do not have permission to approve this booking.", "danger")
-        return redirect(url_for("admin.guest_room_booking_approvals"))
+        guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
+        if guest and guest.user.email:
+            applicant_email = guest.user.email
+
+    if applicant_email:
+        notification = Notification(
+            sender_email=admin.user.email,
+            recipient_email=applicant_email,
+            content="Your room has been temporarily allocated. Please fill in the payment details.",
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(notification)
+
+        # Send email notification
+        msg = Message(
+            f"Room Allocation - Payment Details Required {booking.room_no}",
+            sender=admin.user.email,
+            recipients=[applicant_email]
+        )
+        msg.body = f"Your room has been temporarily allocated. Please log in to your dashboard and fill in the payment details {booking.room_n.o}."
+        mail.send(msg)
 
     db.session.commit()
-    flash(f"Booking ID {booking_id} updated successfully.", "success")
+    flash(f"Room {room.room_no} temporarily allocated. Status updated to Awaiting Payment from Applicant.", "success")
     return redirect(url_for("admin.guest_room_booking_approvals"))
-
 
 @admin_bp.route("/admin/send_message", methods=["POST"])
 def send_message():
@@ -1062,13 +1073,20 @@ def send_message():
         flash("Booking not found.", "danger")
         return redirect(url_for('admin.guest_room_booking_approvals'))
 
-    # Fetch the student's email from the booking's applicant
+    # Fetch the applicant's email from the appropriate database
+    applicant_email = None
     student = Student.query.filter_by(student_id=booking.applicant_id).first()
-    if not student or not student.user.email:
-        flash("Student email not found.", "danger")
-        return redirect(url_for('admin.guest_room_booking_approvals'))
+    if student and student.user.email:
+        applicant_email = student.user.email
+    else:
+        # If not a student, check the Guest database
+        guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
+        if guest and guest.user.email:
+            applicant_email = guest.user.email
 
-    student_email = student.user.email
+    if not applicant_email:
+        flash("Applicant email not found.", "danger")
+        return redirect(url_for('admin.guest_room_booking_approvals'))
 
     # Fetch the sender's email from the logged-in admin's profile
     user_id = session['user_id']
@@ -1082,21 +1100,18 @@ def send_message():
     # Save the message in the database
     notification = Notification(
         sender_email=sender_email,
-        recipient_email=student_email,
+        recipient_email=applicant_email,
         content=message_content,
         timestamp=datetime.utcnow()
     )
     db.session.add(notification)
     db.session.commit()
 
-    # Debugging log for email
-    print(f"Sending email to: {student_email}")
-
     # Send the message via email
     msg = Message(
         "Message from JA(HM)",
         sender=sender_email,  # Use the sender's email from the profile
-        recipients=[student_email]
+        recipients=[applicant_email]
     )
     msg.body = message_content
     mail.send(msg)
@@ -1118,3 +1133,10 @@ def view_notifications():
 
     notifications = Notification.query.filter_by(sender_email=admin.user.email).order_by(Notification.timestamp.desc()).all()
     return render_template("admin/notifications.html", notifications=notifications)
+
+@admin_bp.route("/admin/get_payment_details/<int:booking_id>", methods=["GET"])
+def get_payment_details(booking_id):
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking or not booking.payment_details:
+        return jsonify({"error": "Payment details not found"}), 404
+    return jsonify(booking.payment_details)

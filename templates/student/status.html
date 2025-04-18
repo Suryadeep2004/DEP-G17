@@ -27,7 +27,19 @@
                 <h5 class="mb-0">Guest Room Booking (Application ID: {{ booking.id }})</h5>
             </div>
             <div class="card-body">
-                <p><strong>Status:</strong> {{ booking.status }}</p>
+                <p><strong>Status:</strong> 
+                    {% if booking.status in ["Awaiting Allocation from JA (HM)", "Awaiting Payment from Applicant", "Awaiting Payment Verification from JA (HM)"] %}
+                        Awaiting final confirmation from JA (HM).
+                    {% elif booking.status == "Pending approval from Assistant Registrar (HM)" %}
+                        Awaiting final confirmation from AR (HM).
+                    {% elif booking.status == "Approved" %}
+                        Approved.
+                    {% elif "Rejected" in booking.status %}
+                        {{ booking.status }}.
+                    {% else %}
+                        {{ booking.status }}.
+                    {% endif %}
+                </p>
 
                 <!-- Stepper -->
                 <div class="stepper d-flex justify-content-between align-items-center mt-4">
@@ -35,10 +47,12 @@
                     <div class="step 
                         {% if booking.status == 'Rejected by JA (HM)' %}
                             rejected
-                        {% elif 'Pending approval from JA (HM)' in booking.status %}
+                        {% elif booking.status in ['Awaiting Allocation from JA (HM)', 'Awaiting Payment from Applicant', 'Awaiting Payment Verification from JA (HM)', 'Awaiting Payment from Student'] %}
                             pending
-                        {% else %}
+                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Approved'] %}
                             completed
+                        {% else %}
+                            normal
                         {% endif %}">
                         <div class="circle">1</div>
                         <p class="text-center mt-2">JA (HM)</p>
@@ -48,16 +62,12 @@
                     <div class="step 
                         {% if booking.status == 'Rejected by Assistant Registrar (HM)' %}
                             rejected
-                        {% elif 'Pending approval from Assistant Registrar (HM)' in booking.status %}
+                        {% elif booking.status == 'Pending approval from Assistant Registrar (HM)' %}
                             pending
                         {% elif booking.status in ['Approved', 'Rejected by Chief Warden'] %}
                             completed
-                        {% elif 'Rejected' in booking.status %}
-                            normal
-                        {% elif 'Pending approval from JA (HM)' in booking.status %}
-                            normal
                         {% else %}
-                            completed
+                            normal
                         {% endif %}">
                         <div class="circle">2</div>
                         <p class="text-center mt-2">AR (HM)</p>
@@ -67,12 +77,10 @@
                     <div class="step 
                         {% if booking.status == 'Rejected by Chief Warden' %}
                             rejected
-                        {% elif booking.status == 'Approved' %}
+                        {% elif booking.status in ['Successful Approval', 'Approved'] %}
                             completed
-                        {% elif 'Pending approval from Chief Warden' in booking.status %}
+                        {% elif booking.status == 'Pending approval from Chief Warden' %}
                             pending
-                        {% elif 'Rejected' in booking.status %}
-                            normal
                         {% else %}
                             normal
                         {% endif %}">
@@ -95,6 +103,7 @@
                 </p>
                 {% endif %}
 
+                <!-- View PDF Button -->
                 <button class="btn btn-primary mt-3" onclick="viewPDF('{{ booking.id }}')">View Guest Room Booking PDF</button>
             </div>
         </div>

@@ -36,7 +36,7 @@ def create_app():
     app.register_blueprint(admin_bp)
 
     from app.guest import guest_bp
-    app.register_blueprint(guest_bp, url_prefix="/guest")
+    app.register_blueprint(guest_bp)
 
 
     @app.template_filter('b64encode')

@@ -17,19 +17,9 @@
             </a>
         </div>
 
-        <!-- Approved Applications -->
-        <div class="col-md-4">
-            <a href="{{ url_for('admin.approved_applications') }}" class="text-decoration-none">
-                <div class="card shadow-sm border-0 h-100 transition hover-scale">
-                    <div class="card-body text-center py-4">
-                        <i class="bi bi-check-circle-fill fs-2 text-success"></i>
-                        <h5 class="mt-3">Approved Applications</h5>
-                    </div>
-                </div>
-            </a>
-        </div>
 
         <!-- Guest Room Booking Approvals -->
+        {% if session.get('designation') in ["JA (HM)", "Assistant Registrar (HM)", "Chief Warden"] %}
         <div class="col-md-4">
             <a href="{{ url_for('admin.guest_room_booking_approvals') }}" class="text-decoration-none">
                 <div class="card shadow-sm border-0 h-100 transition hover-scale">
@@ -40,6 +30,7 @@
                 </div>
             </a>
         </div>
+        {% endif %}
 
         <!-- Pending Project Requests (Assistant Registrar) -->
         {% if session.get('designation') == 'Assistant Registrar (HM)' %}

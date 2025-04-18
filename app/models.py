@@ -1,6 +1,6 @@
 from app.database import db
 from datetime import datetime
-
+from sqlalchemy.dialects.postgresql import JSON  # Use this for PostgreSQL
 class CustomUser(db.Model):
     __tablename__ = 'custom_user'
     id = db.Column(db.Integer, primary_key=True)
@@ -163,11 +163,39 @@ class RoomChangeRequest(db.Model):
 
     student = db.relationship('Student', backref=db.backref('room_change_requests', cascade='all, delete-orphan'))
 
+# class GuestRoomBooking(db.Model):
+#     __tablename__ = 'guest_room_booking'
+#     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+#     applicant_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), nullable=False)
+#     room_no = db.Column(db.String(20), db.ForeignKey('room.room_no', ondelete='SET NULL'))  # Add this field
+#     total_guests = db.Column(db.Integer, nullable=False)
+#     guests_male = db.Column(db.Integer, nullable=False)
+#     guests_female = db.Column(db.Integer, nullable=False)
+#     guest_names = db.Column(db.Text, nullable=False)
+#     relation_with_applicant = db.Column(db.Text, nullable=False)
+#     guest_address = db.Column(db.Text, nullable=False)
+#     guest_contact = db.Column(db.Text, nullable=False)
+#     guest_email = db.Column(db.Text)
+#     purpose_of_visit = db.Column(db.Text, nullable=False)
+#     room_category = db.Column(db.Text, nullable=False)
+#     date_arrival = db.Column(db.Date, nullable=False)
+#     time_arrival = db.Column(db.Time, nullable=False)
+#     date_departure = db.Column(db.Date, nullable=False)
+#     time_departure = db.Column(db.Time, nullable=False)
+#     accommodation_by = db.Column(db.Text, nullable=False)
+#     remarks = db.Column(db.Text)
+#     status = db.Column(db.Text, nullable=False, default='Pending')
+#     hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'))
+#     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+#     applicant = db.relationship('CustomUser', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
+#     hostel = db.relationship('Hostel', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
+#     room = db.relationship('Room', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))  # Add this relationship
 class GuestRoomBooking(db.Model):
     __tablename__ = 'guest_room_booking'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     applicant_id = db.Column(db.Integer, db.ForeignKey('custom_user.id', ondelete='CASCADE'), nullable=False)
-    room_no = db.Column(db.String(20), db.ForeignKey('room.room_no', ondelete='SET NULL'))  # Add this field
+    room_no = db.Column(db.String(20), db.ForeignKey('room.room_no', ondelete='SET NULL'))
     total_guests = db.Column(db.Integer, nullable=False)
     guests_male = db.Column(db.Integer, nullable=False)
     guests_female = db.Column(db.Integer, nullable=False)
@@ -187,10 +215,11 @@ class GuestRoomBooking(db.Model):
     status = db.Column(db.Text, nullable=False, default='Pending')
     hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'))
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    payment_details = db.Column(JSON, nullable=True)  # Add this field to store payment details
 
     applicant = db.relationship('CustomUser', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
     hostel = db.relationship('Hostel', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
-    room = db.relationship('Room', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))  # Add this relationship
+    room = db.relationship('Room', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
 
 class ProjectAccommodationRequest(db.Model):
     __tablename__ = 'project_accommodation_request'

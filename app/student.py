@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file, send_from_directory
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file, send_from_directory, jsonify
 from app.models import CustomUser, Student, InternshipApplication, Faculty, Admin, db, Caretaker, Room, Hostel, RoomChangeRequest, GuestRoomBooking, Warden, ProjectAccommodationRequest, Notification
 from werkzeug.utils import secure_filename
 from flask_mail import Message
@@ -39,6 +39,25 @@ def profile():
     has_new_notifications = any(not notification.is_read for notification in notifications)
 
     return render_template("student/profile.html", user=user, student=student, notifications=notifications, has_new_notifications=has_new_notifications)
+
+@student_bp.route("/student/mark-notifications-read", methods=["POST"])
+def mark_notifications_read():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    user_id = session['user_id']
+    user = CustomUser.query.get(user_id)
+
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    # Mark all notifications as read for the current user
+    notifications = Notification.query.filter_by(recipient_email=user.email, is_read=False).all()
+    for notification in notifications:
+        notification.is_read = True
+
+    db.session.commit()
+    return jsonify({'success': True}), 200
 
 @student_bp.route("/student/update_profile", methods=["GET", "POST"])
 def update_profile():
@@ -485,7 +504,7 @@ def submit_guest_room_booking():
         time_departure=time_departure,
         accommodation_by=accommodation_by,
         remarks=remarks,
-        status='Pending approval from JA (HM)'
+        status='Awaiting Allocation from JA (HM)'
     )
 
     db.session.add(guest_room_booking)
@@ -959,7 +978,7 @@ def submit_project_accommodation_request():
         departure_date=departure_date,
         departure_time=departure_time,
         remarks=remarks,
-        status="Pending approval from Faculty",
+        status='Pending approval from JA (HM)' , # Initial status
         otp=otp
     )
 
@@ -1167,3 +1186,81 @@ def form_dashboard():
         return redirect(url_for('auth.login'))
 
     return render_template("student/form_dashboard.html")
+
+
+@student_bp.route("/student/fill_payment_details/<int:booking_id>", methods=["GET", "POST"])
+def fill_payment_details(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking or booking.applicant_id != session['user_id']:
+        flash("Invalid booking or access denied.", "danger")
+        return redirect(url_for('student.status'))
+
+    if request.method == "POST":
+        # Collect form data
+        email = request.form.get("email")
+        name = request.form.get("name")
+        designation = request.form.get("designation")
+        mobile = request.form.get("mobile")
+        hostel_name = request.form.get("hostel_name")
+        amount_deposited = request.form.get("amount_deposited")
+        room_rent_month = request.form.get("room_rent_month")
+        year = request.form.get("year")
+        date_of_deposit = request.form.get("date_of_deposit")
+        utr_number = request.form.get("utr_number")
+        component_of_amount = request.form.get("component_of_amount")
+        email_confirmation = request.form.get("email_confirmation")
+        declaration = request.form.get("declaration")
+
+        # Handle file upload
+        payment_proof = request.files["payment_proof"]
+        if payment_proof:
+            proof_filename = secure_filename(payment_proof.filename)
+            payment_proof.save(os.path.join("uploads", proof_filename))
+        else:
+            proof_filename = None
+
+        # Save payment details to the booking
+        booking.payment_details = {
+            "email": email,
+            "name": name,
+            "designation": designation,
+            "mobile": mobile,
+            "hostel_name": hostel_name,
+            "amount_deposited": amount_deposited,
+            "room_rent_month": room_rent_month,
+            "year": year,
+            "date_of_deposit": date_of_deposit,
+            "utr_number": utr_number,
+            "payment_proof": proof_filename,
+            "component_of_amount": component_of_amount,
+            "email_confirmation": email_confirmation,
+            "declaration": declaration,
+        }
+        booking.status = "Awaiting Payment Verification from JA (HM)"
+        db.session.commit()
+
+        flash("Payment details submitted successfully. Awaiting final approval.", "success")
+        return redirect(url_for('student.status'))
+
+    return render_template("student/fill_payment_details.html", booking=booking)
+
+
+@student_bp.route("/student/notifications", methods=["GET"])
+def view_notifications():
+    if 'user_id' not in session or session.get('user_role') != 'student':
+        return redirect(url_for('auth.login'))
+
+    user_email = CustomUser.query.get(session['user_id']).email
+    notifications = Notification.query.filter_by(recipient_email=user_email).order_by(Notification.timestamp.desc()).all()
+    return render_template("student/notifications.html", notifications=notifications)
+
+@student_bp.context_processor
+def inject_guest_room_booking():
+    if 'user_id' in session and session.get('user_role') == 'student':
+        user_id = session['user_id']
+        guest_room_booking = GuestRoomBooking.query.filter_by(applicant_id=user_id, status="Awaiting Payment from Applicant").first()
+        return {'guest_room_booking': guest_room_booking}
+    return {'guest_room_booking': None}

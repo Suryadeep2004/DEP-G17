@@ -53,13 +53,26 @@
         width: 90%;
         border-radius: 8px;
         display: flex;
-        justify-content: center;
+        align-items: center;
         transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .sidebar a i {
+        margin-right: 10px;
+        font-size: 1.2rem;
     }
 
     .sidebar a span {
         flex-grow: 1;
         text-align: left;
+    }
+
+    .sidebar.collapsed a span {
+        display: none;
+    }
+
+    .sidebar.collapsed a i {
+        margin-right: 0;
     }
 
     .sidebar a:hover {
@@ -73,41 +86,81 @@
         color: #ffffff;
     }
 
-    .hidden {
-        display: none;
+    .main-content {
+        margin-left: 260px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        min-height: 100vh;
+        transition: margin-left 0.3s ease;
     }
 
-    .sidebar.collapsed .sidebar-content,
-    .sidebar.collapsed h3 {
-        display: none;
+    .main-content.collapsed {
+        margin-left: 70px;
+    }
+
+    .header-content {
+        margin-left: 260px;
+        background-color: #f8f9fa;
+        transition: margin-left 0.3s ease;
+    }
+
+    .header-content.collapsed {
+        margin-left: 70px;
     }
 </style>
 
 <div class="sidebar" id="sidebar">
     <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <div class="sidebar-content">
-        <a href="/faculty"><span>Manage Profile</span></a>
-        <a href="/faculty/approvals_dashboard"><span>Approvals</span></a>
-        <a href="/logout"><span>Logout</span></a>
+        <a href="/faculty">
+            <i class="bi bi-person"></i>
+            <span>Manage Profile</span>
+        </a>
+        <a href="/faculty/approvals_dashboard">
+            <i class="bi bi-list-check"></i>
+            <span>Approvals</span>
+        </a>
+        <a href="/logout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </a>
     </div>
 </div>
 
 <script>
+    // Function to toggle the sidebar
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.querySelector('.main-content');
         const headerContent = document.querySelector('.header-content');
-        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+
+        // Update the collapsed state in localStorage
+        localStorage.setItem('facultySidebarCollapsed', isCollapsed);
+
         if (mainContent) {
-            mainContent.classList.toggle('collapsed');
+            mainContent.classList.toggle('collapsed', isCollapsed);
         }
         if (headerContent) {
-            headerContent.classList.toggle('collapsed');
+            headerContent.classList.toggle('collapsed', isCollapsed);
         }
     }
 
-    function toggleApprovals() {
-        const approvalsSection = document.getElementById('approvals-section');
-        approvalsSection.classList.toggle('hidden');
-    }
+    // Restore the sidebar state on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
+        const isCollapsed = localStorage.getItem('facultySidebarCollapsed') === 'true';
+
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            if (mainContent) {
+                mainContent.classList.add('collapsed');
+            }
+            if (headerContent) {
+                headerContent.classList.add('collapsed');
+            }
+        }
+    });
 </script>

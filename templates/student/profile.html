@@ -4,11 +4,10 @@
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-10">
-            <div class="row d-flex align-items-stretch"> <!-- Ensures equal height -->
-                
+            <div class="row d-flex align-items-stretch">
                 <!-- Profile Card -->
                 <div class="col-md-6">
-                    <div class="card p-4 shadow-sm text-center h-100"> <!-- h-100 ensures same height -->
+                    <div class="card p-4 shadow-sm text-center h-100">
                         <div class="d-flex justify-content-center">
                             <img src="{{ url_for('static', filename='profile_pic.png') }}" class="rounded-circle shadow-sm mb-3" width="80" height="80" alt="Profile Picture">
                         </div>
@@ -18,38 +17,41 @@
                 
                 <!-- User Details -->
                 <div class="col-md-6">
-                    <div class="card p-4 shadow-sm h-100"> <!-- h-100 ensures same height -->
+                    <div class="card p-4 shadow-sm h-100">
                         <p><strong>Room Number:</strong> {{ student.student_room_no if student.student_room_no else 'Undefined' }}</p>
                         <p><strong>Email:</strong> {{ user.email }}</p>
                         <p><strong>Phone Number:</strong> {{ student.student_phone if student.student_phone else 'Undefined' }}</p>
                         <a href="{{ url_for('student.update_profile') }}" class="btn btn-primary mt-3">Edit Profile</a>
                     </div>
                 </div>
-
             </div> 
         </div>
     </div>
 </div>
 
-<!-- Notification Bell in Top-Right Corner -->
+<!-- Notification Bell -->
 <div class="notification-container">
     <div class="dropdown">
         <a class="btn btn-light dropdown-toggle notification-bell" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-bell"></i> <!-- Bootstrap bell icon -->
-            {% if notifications|length > 0 %}
-                <span class="badge bg-danger">{{ notifications|length }}</span>
+            <i class="bi bi-bell"></i>
+            {% if notifications|selectattr('is_read', 'equalto', False)|list|length > 0 %}
+                <span class="badge bg-danger">{{ notifications|selectattr('is_read', 'equalto', False)|list|length }}</span>
             {% endif %}
         </a>
-        <div class="dropdown-menu notification-bar" id="notificationBar" aria-labelledby="notificationDropdown">
+        <div class="dropdown-menu notification-bar shadow" aria-labelledby="notificationDropdown">
             {% if notifications|length > 0 %}
                 <ul class="list-unstyled px-3">
                     {% for notification in notifications %}
                         <li class="mb-2">
-                            <i class="bi bi-dot"></i> <!-- Bootstrap dot icon -->
+                            <i class="bi bi-dot text-primary"></i>
                             {{ notification.content }}
+                            <small class="text-muted d-block">{{ notification.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
                         </li>
                     {% endfor %}
                 </ul>
+                <div class="text-center mt-2">
+                    <button class="btn btn-sm btn-primary" id="markAllRead">Mark All as Read</button>
+                </div>
             {% else %}
                 <div class="text-muted text-center py-2">No notifications</div>
             {% endif %}
@@ -57,43 +59,13 @@
     </div>
 </div>
 
-<!-- Dynamic Message Block -->
-{% if has_new_notifications %}
-<div id="dynamicMessage" class="alert alert-info notification-alert" role="alert">
-    <strong>New Message!</strong> Please click on the bell icon to view your notifications.
-</div>
-{% endif %}
-
-<!-- Add styles for the dynamic message -->
-<style>
-.notification-alert {
-    position: absolute;
-    top: 140px;
-    right: 20px;
-    z-index: 1050;
-    animation: fadeIn 1s ease-in-out;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-</style>
-
-<!-- Add styles for the notification bar -->
+<!-- Styles -->
 <style>
 .notification-container {
     position: fixed;
-    top: 100px; /* Add spacing from the top */
-    right: 20px; /* Add spacing from the right */
-    z-index: 1050; /* Ensure it appears above other elements */
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
 }
 
 .notification-bell {
@@ -110,19 +82,19 @@
 
 .notification-bar {
     position: absolute;
-    top: 50px; /* Position below the bell icon */
+    top: 50px;
     right: 0;
-    width: 400px; /* Increased width for larger messages */
-    max-height: 300px; /* Increased height for larger messages */
-    overflow-y: auto; /* Enable vertical scrolling */
+    width: 400px;
+    max-height: 300px;
+    overflow-y: auto;
     padding: 15px;
     border: 1px solid #ddd;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     background-color: #ffffff;
-    z-index: 1051; /* Ensure it overlaps other elements */
-    display: none; /* Initially hidden */
-    transition: width 0.3s ease, height 0.3s ease; /* Smooth transition for resizing */
+    z-index: 1051;
+    display: none;
+    transition: all 0.3s ease;
 }
 
 .notification-bar ul {
@@ -132,12 +104,12 @@
 
 .notification-bar li {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     font-size: 1rem;
     margin-bottom: 8px;
     padding: 8px;
     border-bottom: 1px solid #f1f1f1;
-    word-wrap: break-word; /* Ensure long messages wrap */
+    word-wrap: break-word;
 }
 
 .notification-bar li:last-child {
@@ -150,36 +122,37 @@
 }
 </style>
 
-<!-- Add JavaScript to handle the click event -->
+<!-- JavaScript -->
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const bellIcon = document.getElementById("notificationDropdown");
-    const dynamicMessage = document.getElementById("dynamicMessage");
-    const notificationBar = document.getElementById("notificationBar");
+    document.addEventListener("DOMContentLoaded", function () {
+        const markAllReadButton = document.getElementById("markAllRead");
+        const badge = document.querySelector(".notification-bell .badge");
 
-    if (bellIcon) {
-        bellIcon.addEventListener("click", function () {
-            // Toggle the visibility of the notification bar
-            if (notificationBar.style.display === "none" || notificationBar.style.display === "") {
-                notificationBar.style.display = "block";
-
-                // Dynamically adjust the size of the notification bar
-                const maxMessages = 5; // Number of messages to display without scrolling
-                const messageHeight = 50; // Approximate height of each message in pixels
-                const padding = 30; // Additional padding for the bar
-                const totalHeight = Math.min(maxMessages * messageHeight + padding, 500); // Cap the height at 300px
-                notificationBar.style.height = `${totalHeight}px`;
-                notificationBar.style.width = "400px"; // Set a fixed width
-            } else {
-                notificationBar.style.display = "none";
-            }
-
-            // Hide the dynamic message when the bell icon is clicked
-            if (dynamicMessage) {
-                dynamicMessage.style.display = "none";
-            }
-        });
-    }
-});
+        if (markAllReadButton) {
+            markAllReadButton.addEventListener("click", function () {
+                // Mark notifications as read
+                fetch('/student/mark-notifications-read', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ markAsRead: true })
+                }).then(response => {
+                    if (response.ok) {
+                        // Hide unread badge and update UI
+                        if (badge) {
+                            badge.style.display = "none";
+                        }
+                        alert("All notifications marked as read.");
+                    } else {
+                        console.error('Failed to mark notifications as read');
+                    }
+                }).catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        }
+    });
 </script>
 {% endblock %}

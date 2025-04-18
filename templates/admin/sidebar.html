@@ -53,13 +53,26 @@
         width: 90%;
         border-radius: 8px;
         display: flex;
-        justify-content: center;
+        align-items: center;
         transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .sidebar a i {
+        margin-right: 10px;
+        font-size: 1.2rem;
     }
 
     .sidebar a span {
         flex-grow: 1;
         text-align: left;
+    }
+
+    .sidebar.collapsed a span {
+        display: none;
+    }
+
+    .sidebar.collapsed a i {
+        margin-right: 0;
     }
 
     .sidebar a:hover {
@@ -71,12 +84,6 @@
     .sidebar a:active {
         background-color: #b8932d;
         color: #ffffff;
-    }
-
-    /* Collapsed view: show only toggle */
-    .sidebar.collapsed .sidebar-content,
-    .sidebar.collapsed h3 {
-        display: none;
     }
 
     .main-content {
@@ -105,11 +112,26 @@
 <div class="sidebar" id="sidebar">
     <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
     <div class="sidebar-content">
-        <a href="/admin"><span>Manage Profile</span></a>
-        <a href="/admin/approvals_dashboard"><span>Approvals</span></a>
-        <a href="{{ url_for('admin.add_users') }}"><span>Add Users</span></a>
-        <a href="{{ url_for('admin.guest_room_booking_status') }}"><span>Guest Room Booking Status</span></a>
-        <a href="/logout"><span>Logout</span></a>
+        <a href="/admin">
+            <i class="bi bi-person"></i>
+            <span>Manage Profile</span>
+        </a>
+        <a href="/admin/approvals_dashboard">
+            <i class="bi bi-list-check"></i>
+            <span>Approvals</span>
+        </a>
+        <a href="{{ url_for('admin.add_users') }}">
+            <i class="bi bi-person-plus"></i>
+            <span>Add Users</span>
+        </a>
+        <a href="{{ url_for('admin.approved_applications') }}">
+            <i class="bi bi-check-circle"></i>
+            <span>Approved Applications</span>
+        </a>
+        <a href="/logout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </a>
     </div>
 </div>
 
@@ -126,4 +148,41 @@
             headerContent.classList.toggle('collapsed');
         }
     }
+</script>
+<script>
+    // Function to toggle the sidebar
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+
+        // Update the collapsed state in localStorage
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed', isCollapsed);
+        }
+        if (headerContent) {
+            headerContent.classList.toggle('collapsed', isCollapsed);
+        }
+    }
+
+    // Restore the sidebar state on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            if (mainContent) {
+                mainContent.classList.add('collapsed');
+            }
+            if (headerContent) {
+                headerContent.classList.add('collapsed');
+            }
+        }
+    });
 </script>

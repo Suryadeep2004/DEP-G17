@@ -60,7 +60,6 @@ def login():
                 return redirect(url_for("admin.profile"))
             elif Guest.query.filter_by(guest_id=user.id).first():
                 session['user_role'] = 'guest'
-                print("Redirecting to guest profile")  # Debug statement
                 return redirect(url_for("guest.profile"))
             
             flash("Login successful!", "success")

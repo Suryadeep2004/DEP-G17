@@ -7,8 +7,8 @@
             <!-- Profile Card -->
             <div class="card shadow-lg border-0 rounded-lg">
                 <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
-                        <div class="row align-items-center">
+                    <form method="POST" enctype="multipart/form-data"> 
+                        <div class="row align-items-center"> 
                             <!-- User Details -->
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
@@ -39,7 +39,7 @@
                                     {% endif %}
                                 </div>
                             </div>
-                        </div>
+                        </div> 
                         
                         <hr class="my-4">
 
@@ -54,32 +54,130 @@
     </div>
 </div>
 
-<!-- Add Some Custom Styling -->
+<!-- Notification Bell -->
+<div class="notification-container">
+    <div class="dropdown">
+        <a class="btn btn-light dropdown-toggle notification-bell" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-bell"></i>
+            {% if notifications|selectattr('is_read', 'equalto', False)|list|length > 0 %}
+                <span class="badge bg-danger">{{ notifications|selectattr('is_read', 'equalto', False)|list|length }}</span>
+            {% endif %}
+        </a>
+        <div class="dropdown-menu notification-bar shadow" aria-labelledby="notificationDropdown">
+            {% if notifications|length > 0 %}
+                <ul class="list-unstyled px-3">
+                    {% for notification in notifications %}
+                        <li class="mb-2">
+                            <i class="bi bi-dot text-primary"></i>
+                            {{ notification.content }}
+                            <small class="text-muted d-block">{{ notification.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <div class="text-center mt-2">
+                    <button class="btn btn-sm btn-primary" id="markAllRead">Mark All as Read</button>
+                </div>
+            {% else %}
+                <div class="text-muted text-center py-2">No notifications</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Styles -->
 <style>
-    .signature-box {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: #f8f9fa;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 10px;
-        min-height: 150px;
-    }
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
 
-    .signature-frame {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        max-width: 100%;
-        max-height: 100%;
-        overflow: hidden;
-    }
+.notification-bell {
+    position: relative;
+    font-size: 1.5rem;
+}
 
-    .signature-image {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain; /* Ensures the signature fits within the frame */
-    }
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.75rem;
+}
+
+.notification-bar {
+    position: absolute;
+    top: 50px;
+    right: 0;
+    width: 400px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    background-color: #ffffff;
+    z-index: 1051;
+    display: none;
+    transition: all 0.3s ease;
+}
+
+.notification-bar ul {
+    margin: 0;
+    padding: 0;
+}
+
+.notification-bar li {
+    display: flex;
+    flex-direction: column;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    padding: 8px;
+    border-bottom: 1px solid #f1f1f1;
+    word-wrap: break-word;
+}
+
+.notification-bar li:last-child {
+    border-bottom: none;
+}
+
+.notification-bar li i {
+    color: #007bff;
+    margin-right: 10px;
+}
 </style>
+
+<!-- JavaScript -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const markAllReadButton = document.getElementById("markAllRead");
+        const badge = document.querySelector(".notification-bell .badge");
+
+        if (markAllReadButton) {
+            markAllReadButton.addEventListener("click", function () {
+                // Mark notifications as read
+                fetch('/student/mark-notifications-read', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ markAsRead: true })
+                }).then(response => {
+                    if (response.ok) {
+                        // Hide unread badge and update UI
+                        if (badge) {
+                            badge.style.display = "none";
+                        }
+                        alert("All notifications marked as read.");
+                    } else {
+                        console.error('Failed to mark notifications as read');
+                    }
+                }).catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        }
+    });
+</script>
 {% endblock %}

@@ -2,7 +2,34 @@
 
 {% block content %}
 <div class="container">
-    <div class="card shadow-sm border-0">
+    <!-- Terms and Conditions Modal -->
+    <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger fw-bold">Please read the terms and conditions carefully before agreeing.</p>
+                    <ol>
+                        <li>The request for accommodation should be submitted prior to arrival at least one week earlier as per existing rules.</li>
+                        <li>The students are required to pay hostel room rent and food charges in advance to Hostel Management Section.</li>
+                        <li>Separate rooms on a shared basis are allotted for boys and girls in hostels.</li>
+                        <li>The student must follow the hostel rules; otherwise, a heavy penalty will be imposed.</li>
+                        <li>Pets/Dogs/Cats etc. are not allowed in the hostel premises.</li>
+                    </ol>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="disagreeButton">Disagree</button>
+                    <button type="button" class="btn btn-primary" id="agreeButton">I Agree</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Accommodation Request Form -->
+    <div class="card shadow-sm border-0" id="formCard" style="display: none;">
         <div class="card-header bg-primary text-white">
             <h4 class="mb-0">Project Accommodation Request Form</h4>
         </div>
@@ -69,4 +96,27 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const termsModal = new bootstrap.Modal(document.getElementById("termsModal"));
+        const formCard = document.getElementById("formCard");
+        const agreeButton = document.getElementById("agreeButton");
+        const disagreeButton = document.getElementById("disagreeButton");
+
+        // Show the terms modal on page load
+        termsModal.show();
+
+        // Handle "I Agree" button click
+        agreeButton.addEventListener("click", function () {
+            termsModal.hide();
+            formCard.style.display = "block"; // Show the form
+        });
+
+        // Handle "Disagree" button click
+        disagreeButton.addEventListener("click", function () {
+            window.location.href = "{{ url_for('student.form_dashboard') }}"; // Redirect to form dashboard
+        });
+    });
+</script>
 {% endblock %}

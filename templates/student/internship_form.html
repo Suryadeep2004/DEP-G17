@@ -2,7 +2,36 @@
 
 {% block content %}
 <div class="container">
-    <div class="card shadow-sm border-0">
+    <!-- Terms and Conditions Modal -->
+    <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger fw-bold">Please read the terms and conditions carefully before agreeing.</p>
+                    <ol>
+                        <li>The request for accommodation should be submitted prior to arrival at least one week earlier as per existing rules.</li>
+                        <li>The Internship students are required to pay hostel room rent and food charges in advance to Hostel Management Section.</li>
+                        <li>Separate rooms on a shared basis are allotted for boys and girls in hostels.</li>
+                        <li>One day minimum charge shall be levied for all bookings unless these are cancelled at least 48 hrs. before the commencement of the occupancy.</li>
+                        <li>Booking is not permitted for students undergoing medical treatment/advice and who are suffering from communicable diseases, are bedridden, or are under post-delivery care.</li>
+                        <li>In case of cancellation, one day will be counted on a 24-hour basis or a part thereof commencing the time of arrival.</li>
+                        <li>Pets/Dogs/Cats etc. are not allowed in the hostel premises.</li>
+                    </ol>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="disagreeButton">Disagree</button>
+                    <button type="button" class="btn btn-primary" id="agreeButton">I Agree</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Internship Form -->
+    <div class="card shadow-sm border-0" id="formCard" style="display: none;">
         <div class="card-header bg-primary text-white">
             <h4 class="mb-0">Internship Application Form</h4>
         </div>
@@ -82,103 +111,27 @@
         </div>
     </div>
 </div>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const nameInput = document.getElementById("name");
-        const emailInput = document.getElementById("email");
-        const phoneInput = document.getElementById("contact_number");
+        const termsModal = new bootstrap.Modal(document.getElementById("termsModal"));
+        const formCard = document.getElementById("formCard");
+        const agreeButton = document.getElementById("agreeButton");
+        const disagreeButton = document.getElementById("disagreeButton");
 
-        const profileName = "{{ user.name }}".toLowerCase(); // Pass the user's name from the backend
-        const profileEmail = "{{ user.email }}".toLowerCase(); // Pass the user's email from the backend
-        const profilePhone = "{{ student.student_phone }}"; // Pass the user's phone from the backend
+        // Show the terms modal on page load
+        termsModal.show();
 
-        // Validate Name (case-insensitive)
-        nameInput.addEventListener("input", function () {
-            if (nameInput.value.toLowerCase()=== profileName) {
-                nameInput.classList.remove("is-invalid");
-                nameInput.classList.add("is-valid");
-            } else {
-                nameInput.classList.remove("is-valid");
-                nameInput.classList.add("is-invalid");
-            }
+        // Handle "I Agree" button click
+        agreeButton.addEventListener("click", function () {
+            termsModal.hide();
+            formCard.style.display = "block"; // Show the form
         });
 
-        // Validate Email
-        emailInput.addEventListener("input", function () {
-            if (emailInput.value.toLowerCase() === profileEmail) {
-                emailInput.classList.remove("is-invalid");
-                emailInput.classList.add("is-valid");
-            } else {
-                emailInput.classList.remove("is-valid");
-                emailInput.classList.add("is-invalid");
-            }
+        // Handle "Disagree" button click
+        disagreeButton.addEventListener("click", function () {
+            window.location.href = "{{ url_for('student.profile') }}"; // Redirect to profile page
         });
-
-        // Validate Phone Number
-        phoneInput.addEventListener("input", function () {
-            const phoneRegex = /^\d{10}$/;
-            if (phoneRegex.test(phoneInput.value) && phoneInput.value === profilePhone) {
-                phoneInput.classList.remove("is-invalid");
-                phoneInput.classList.add("is-valid");
-            } else {
-                phoneInput.classList.remove("is-valid");
-                phoneInput.classList.add("is-invalid");
-            }
-        });
-    });
-</script>
-
-<style>
-    .is-valid {
-        border-color: #0b2c4a;
-    }
-
-    .is-invalid {
-        border-color: #0b2c4a;
-    }
-</style>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const facultyNameInput = document.getElementById("faculty_mentor");
-        const facultyEmailInput = document.getElementById("faculty_email");
-
-        // Validate Faculty Name and Email
-        function validateFaculty() {
-            const facultyName = facultyNameInput.value.trim().toLowerCase();
-            const facultyEmail = facultyEmailInput.value.trim().toLowerCase();
-
-            if (facultyName && facultyEmail) {
-                fetch("{{ url_for('student.validate_faculty') }}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        faculty_name: facultyName,
-                        faculty_email: facultyEmail,
-                    }),
-                })
-                .then(response => {
-                    if (response.ok) {
-                        facultyNameInput.classList.remove("is-invalid");
-                        facultyNameInput.classList.add("is-valid");
-                        facultyEmailInput.classList.remove("is-invalid");
-                        facultyEmailInput.classList.add("is-valid");
-                    } else {
-                        facultyNameInput.classList.remove("is-valid");
-                        facultyNameInput.classList.add("is-invalid");
-                        facultyEmailInput.classList.remove("is-valid");
-                        facultyEmailInput.classList.add("is-invalid");
-                    }
-                })
-                .catch(error => {
-                    console.error("Error validating faculty:", error);
-                });
-            }
-        }
-
-        facultyNameInput.addEventListener("input", validateFaculty);
-        facultyEmailInput.addEventListener("input", validateFaculty);
     });
 </script>
 {% endblock %}
