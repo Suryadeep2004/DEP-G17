@@ -518,59 +518,76 @@ def guest_room_booking_approvals():
                 'Awaiting Payment Verification from JA (HM)'
             ])
         )
-        # Check for sort parameter
-        sort = request.args.get('sort', 'default')
-        if sort == 'Awaiting Allocation from JA (HM)':
-            bookings = GuestRoomBooking.query.filter(
-                GuestRoomBooking.status.in_([
-                    'Awaiting Allocation from JA (HM)'
-                ])
-            ).order_by(GuestRoomBooking.created_at.desc()).all()
-        elif sort == 'Awaiting Payment from Applicant':
-            bookings = GuestRoomBooking.query.filter(
-                GuestRoomBooking.status.in_([
-                    'Awaiting Payment from Applicant'
-                ])
-            ).order_by(GuestRoomBooking.created_at.desc()).all()
-        elif sort == 'Awaiting Payment Verification from JA (HM)':
-            bookings = GuestRoomBooking.query.filter(
-                GuestRoomBooking.status.in_([
-                    'Awaiting Payment Verification from JA (HM)'
-                ])
-            ).order_by(GuestRoomBooking.created_at.desc()).all()
     elif admin.designation == 'Assistant Registrar (HM)':
         bookings = GuestRoomBooking.query.filter(
             GuestRoomBooking.status.in_(['Pending approval from Assistant Registrar (HM)'])
         ).all()
     elif admin.designation == 'Chief Warden':
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
+    
+    if admin.designation == 'JA (HM)':
+        # Handle sort and search functionality
+        sort = request.args.get('sort', 'default')
+        sort_by = request.args.get('sort_by')
+        search_value = request.args.get('search_value')
 
-    # Handle search and sort functionality
-    sort_by = request.args.get('sort_by')
-    search_value = request.args.get('search_value')
-    # Ensure bookings is a query object
-    bookings_query = GuestRoomBooking.query.join(CustomUser, GuestRoomBooking.applicant_id == CustomUser.id)
-    if sort_by and search_value:
-        if sort_by == 'name':
-            bookings_query = bookings_query.filter(CustomUser.name.ilike(f"%{search_value}%"))
-        elif sort_by == 'email':
-            bookings_query = bookings_query.filter(CustomUser.email.ilike(f"%{search_value}%"))
-        elif sort_by == 'arrival_date':
-            try:
-                search_date = datetime.strptime(search_value, '%Y-%m-%d').date()
-                bookings_query = bookings_query.filter(GuestRoomBooking.date_arrival == search_date)
-            except ValueError:
-                flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
-        elif sort_by == 'departure_date':
-            try:
-                search_date = datetime.strptime(search_value, '%Y-%m-%d').date()
-                bookings_query = bookings_query.filter(GuestRoomBooking.date_departure == search_date)
-            except ValueError:
-                flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+        # Start with the base query
+        bookings_query = GuestRoomBooking.query.join(CustomUser, GuestRoomBooking.applicant_id == CustomUser.id).filter(
+            GuestRoomBooking.status.in_([
+                'Awaiting Allocation from JA (HM)',
+                'Awaiting Payment from Applicant',
+                'Awaiting Payment Verification from JA (HM)'
+            ])
+    )
 
-    bookings = bookings_query.all()
+        if sort != 'default':
+            if sort == 'Awaiting Allocation from JA (HM)':
+                bookings_query = bookings_query.filter(
+                    GuestRoomBooking.status == 'Awaiting Allocation from JA (HM)'
+                )
+                sort='default'
+            elif sort == 'Awaiting Payment from Applicant':
+                bookings_query = bookings_query.filter(
+                    GuestRoomBooking.status == 'Awaiting Payment from Applicant'
+                )
+                sort='default'
+            elif sort == 'Awaiting Payment Verification from JA (HM)':
+                bookings_query = bookings_query.filter(
+                    GuestRoomBooking.status == 'Awaiting Payment Verification from JA (HM)'
+                )
+                sort='default'
+            elif sort == 'default':
+                bookings_query = bookings_query.filter(
+                GuestRoomBooking.status.in_([
+                    'Awaiting Allocation from JA (HM)',
+                    'Awaiting Payment from Applicant',
+                    'Awaiting Payment Verification from JA (HM)'
+                ])
+            )
+
+        if sort_by and search_value:
+            if sort_by == 'name':
+                bookings_query = bookings_query.filter(CustomUser.name.ilike(f"%{search_value}%"))
+            elif sort_by == 'email':
+                bookings_query = bookings_query.filter(CustomUser.email.ilike(f"%{search_value}%"))
+            elif sort_by == 'arrival_date':
+                try:
+                    search_date = datetime.strptime(search_value, '%Y-%m-%d').date()
+                    bookings_query = bookings_query.filter(GuestRoomBooking.date_arrival == search_date)
+                except ValueError:
+                    flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+            elif sort_by == 'departure_date':
+                try:
+                    search_date = datetime.strptime(search_value, '%Y-%m-%d').date()
+                    bookings_query = bookings_query.filter(GuestRoomBooking.date_departure == search_date)
+                except ValueError:
+                    flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+
+        # Fetch the final list of bookings
+        bookings = bookings_query.order_by(GuestRoomBooking.created_at.desc()).all()
 
     return render_template("admin/guest_room_booking_approvals.html", bookings=bookings, admin=admin)
+
 
 @admin_bp.route("/admin/handle_guest_room_booking/<int:booking_id>", methods=["POST"])
 def handle_guest_room_booking(booking_id):
@@ -585,12 +602,13 @@ def handle_guest_room_booking(booking_id):
 
     action = request.form.get('action')
     new_remark = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.id.desc()).first()
+
+    if new_remark:
+        db.session.add(new_remark)
+        db.session.commit()
+        flash("Remark added successfully.", "success")
  
     booking = GuestRoomBooking.query.get(booking_id)
-    db.session.add(new_remark)
-    # Commit the changes
-    db.session.commit()
-    flash("Remark added successfully.", "success")
 
     if not booking:
         flash("Booking not found.", "danger")
@@ -618,6 +636,18 @@ def handle_guest_room_booking(booking_id):
             if room:
                 room.is_booked = False  # Mark the room as not booked
 
+        
+        new_remark = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.id.desc()).first()
+
+        if not new_remark:
+            new_remark = Remark(
+                booking_id=booking_id,
+                content=f"Rejected by {admin.designation}",  # Replace with appropriate content
+                added_by="System"  # Replace with the appropriate user or admin name
+            )
+            db.session.add(new_remark)
+            db.session.commit()
+        flash("Remark added successfully.", "success")
         booking.room_no = None
         booking.status = f"Rejected by {admin.designation}"  # Save the remark
         flash(f"Booking rejected by {admin.designation}. Temporary room allocation has been deallocated.", "danger")
@@ -684,7 +714,7 @@ def admin_view_guest_room_booking_pdf(booking_id):
         applicant_phone = student.student_phone or 'N/A'
         applicant_entry = student.student_roll or 'N/A'
         applicant_department_or_address = student.department or 'N/A'
-        can.drawString(160, 605, "Student")  # Indicate the role as "Student"
+        applicant_role = "Student"  # Indicate the role as "Student"
     elif guest:
         applicant_name = booking.applicant.name
         applicant_phone = guest.phone or 'N/A'

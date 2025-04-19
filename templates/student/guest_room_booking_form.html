@@ -23,6 +23,8 @@
                         <li>In case of emergency due to shortage of accommodation, a single occupant of the room may be asked to share the accommodation with another guest.</li>
                         <li>Guests must vacate the hostel by 12:00 PM on their departure date. Failure to do so will result in an additional day's charge as per the rule.</li>
                         <li>Guests are required to pay the charges in advance, except in cases where faculty or staff will cover the charges directly or through a project or departmental budget.</li>
+                        <li>₹400 per day per person for accommodation in guest room (Non-AC).</li>
+                        <li>₹600 per day per person for accommodation in guest room (AC).</li>
                     </ol>
                 </div>
                 <div class="modal-footer">
@@ -91,8 +93,8 @@
                         <label for="room_category" class="form-label">Room Category</label>
                         <select class="form-select" id="room_category" name="room_category" required>
                             <option value="" selected disabled>Select Room Type</option>
-                            <option value="A">A (Non-AC)</option>
-                            <option value="B">B (AC)</option>
+                            <option value="A">A ₹400 per day per person for accommodation in guest room (Non-AC)</option>
+                            <option value="B">B ₹600 per day per person for accommodation in guest room (AC)</option>
                         </select>
                     </div>
 
@@ -138,7 +140,34 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const phoneInput = document.getElementById("guest_contact");
+        const phoneError = document.getElementById("phoneError");
 
+        phoneInput.addEventListener("input", function () {
+            const phoneValue = phoneInput.value;
+
+            // Check if the phone number is exactly 10 digits and numeric
+            if (/^\d{10}$/.test(phoneValue)) {
+                phoneError?.classList.add("d-none"); // Hide error message
+                phoneInput.classList.remove("is-invalid"); // Remove invalid styling
+                phoneInput.classList.add("is-valid"); // Add valid styling
+            } else {
+                phoneError?.classList.remove("d-none"); // Show error message
+                phoneInput.classList.add("is-invalid"); // Add invalid styling
+                phoneInput.classList.remove("is-valid"); // Remove valid styling
+            }
+        });
+
+        // Prevent non-numeric input
+        phoneInput.addEventListener("keypress", function (e) {
+            if (!/^\d$/.test(e.key)) {
+                e.preventDefault(); // Block non-numeric characters
+            }
+        });
+    });
+</script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const termsModal = new bootstrap.Modal(document.getElementById("termsModal"));

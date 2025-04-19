@@ -49,7 +49,7 @@
                             rejected
                         {% elif booking.status in ['Awaiting Allocation from JA (HM)', 'Awaiting Payment from Applicant', 'Awaiting Payment Verification from JA (HM)', 'Awaiting Payment from Student'] %}
                             pending
-                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Successful Approval'] %}
+                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Successful Approval', 'Pending approval from Chief Warden', 'Rejected by Assistant Registrar (HM)', 'Rejected by Chief Warden'] %}
                             completed
                         {% else %}
                             normal
@@ -64,7 +64,7 @@
                             rejected
                         {% elif booking.status == 'Pending approval from Assistant Registrar (HM)' %}
                             pending
-                        {% elif booking.status in ['Successful Approval', 'Rejected by Chief Warden'] %}
+                        {% elif booking.status in ['Successful Approval', 'Rejected by Chief Warden', 'Pending approval from Chief Warden'] %}
                             completed
                         {% else %}
                             normal
@@ -88,7 +88,6 @@
                         <p class="text-center mt-2">Chief Warden</p>
                     </div>
                 </div>
-
                 <!-- Rejection Note -->
                 {% if 'Rejected' in booking.status %}
                 <p class="text-danger mt-3">

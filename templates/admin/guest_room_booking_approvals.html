@@ -13,31 +13,14 @@
                 <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Allocation from JA (HM)') }}">Awaiting Allocation from JA (HM)</a></li>
                 <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Payment from Applicant') }}">Awaiting Payment from Applicant</a></li>
                 <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Payment Verification from JA (HM)') }}">Awaiting Payment Verification from JA (HM)</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='default') }}">Default</a></li>
+                <li><a class="dropdown-item" href="#" onclick="openSortInputModal('name')">Name</a></li>
+                <li><a class="dropdown-item" href="#" onclick="openSortInputModal('arrival_date')">Arrival Date</a></li>
+                <li><a class="dropdown-item" href="#" onclick="openSortInputModal('departure_date')">Departure Date</a></li>
+                <li><a class="dropdown-item" href="#" onclick="openSortInputModal('email')">Email</a></li>
             </ul>
         </div>
 {% endif %}
-    </div>
-    <!-- Sort By Dropdown -->
-    <div class="d-flex justify-content-end mb-3">
-        <div class="dropdown">
-            <button class="btn btn-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                Sort By
-            </button>
-            <ul class="dropdown-menu" aria-labelledby="sortDropdown">
-                <li>
-                    <a class="dropdown-item" href="#" onclick="openSortInputModal('name')">Name</a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="#" onclick="openSortInputModal('arrival_date')">Arrival Date</a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="#" onclick="openSortInputModal('departure_date')">Departure Date</a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="#" onclick="openSortInputModal('email')">Email</a>
-                </li>
-            </ul>
-        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover table-striped align-middle text-center">

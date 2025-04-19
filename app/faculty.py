@@ -566,9 +566,10 @@ def handle_guest_room_booking(booking_id):
         return redirect(url_for('faculty.guest_room_booking_approvals'))
 
     new_remark = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.id.desc()).first()
-    db.session.add(new_remark)
-    db.session.commit()
-    flash("Remark added successfully.", "success")
+    if new_remark:
+        db.session.add(new_remark)
+        db.session.commit()
+        flash("Remark added successfully.", "success")
 
     if action == 'approve':
         # Approve the booking
@@ -586,6 +587,17 @@ def handle_guest_room_booking(booking_id):
         booking.room_no = None
         booking.status = 'Rejected by Chief Warden'
         flash("Booking rejected successfully.", "danger")
+
+        new_remark = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.id.desc()).first()
+
+        if not new_remark:
+            new_remark = Remark(
+                booking_id=booking_id,
+                content=f"Rejected by Chief Warden",  # Replace with appropriate content
+                added_by="System"  # Replace with the appropriate user or admin name
+            )
+            db.session.add(new_remark)
+            db.session.commit()
 
         # Notify the applicant about the rejection
         applicant_email = None
@@ -620,7 +632,6 @@ def handle_guest_room_booking(booking_id):
 
     return redirect(url_for('faculty.guest_room_booking_approvals'))
 
-
 @faculty_bp.route("/faculty/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
 def faculty_view_guest_room_booking_pdf(booking_id):
     if 'user_id' not in session or session.get('user_role') != 'faculty':
@@ -651,7 +662,7 @@ def faculty_view_guest_room_booking_pdf(booking_id):
         applicant_phone = student.student_phone or 'N/A'
         applicant_entry = student.student_roll or 'N/A'
         applicant_department_or_address = student.department or 'N/A'
-        can.drawString(160, 605, "Student")  # Indicate the role as "Student"
+        applicant_role = "Student"   # Indicate the role as "Student"
     elif guest:
         applicant_name = booking.applicant.name
         applicant_phone = guest.phone or 'N/A'

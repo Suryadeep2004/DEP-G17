@@ -18,7 +18,7 @@
             </div>
         </div>
     </form>
-
+ 
     <!-- Guest Room Booking Status -->
     {% if guest_room_bookings %}
         {% for booking in guest_room_bookings %}
@@ -37,9 +37,9 @@
                             rejected
                         {% elif booking.status in ['Awaiting Allocation from JA (HM)', 'Awaiting Payment from Applicant', 'Awaiting Payment Verification from JA (HM)', 'Awaiting Payment from Student'] %}
                             pending
-                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Approved'] %}
+                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Successful Approval', 'Pending approval from Chief Warden', 'Rejected by Assistant Registrar (HM)', 'Rejected by Chief Warden'] %}
                             completed
-                            {% else %}
+                        {% else %}
                             normal
                         {% endif %}">
                         <div class="circle">1</div>
@@ -52,7 +52,7 @@
                             rejected
                         {% elif booking.status == 'Pending approval from Assistant Registrar (HM)' %}
                             pending
-                        {% elif booking.status in ['Approved', 'Rejected by Chief Warden'] %}
+                        {% elif booking.status in ['Successful Approval', 'Rejected by Chief Warden', 'Pending approval from Chief Warden'] %}
                             completed
                         {% else %}
                             normal
