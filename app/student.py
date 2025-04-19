@@ -486,6 +486,8 @@ def submit_guest_room_booking():
     date_departure = datetime.strptime(date_departure, '%Y-%m-%d').date()
     time_departure = datetime.strptime(time_departure, '%H:%M').time()
 
+    
+
     guest_room_booking = GuestRoomBooking(
         applicant_id=user_id,
         total_guests=total_guests,

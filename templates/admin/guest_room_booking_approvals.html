@@ -7,7 +7,7 @@
         {% if admin.designation == "JA (HM)" %}
         <div class="dropdown">
             <button class="btn btn-primary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                Sort by
+                Filter by
             </button>
             <ul class="dropdown-menu" aria-labelledby="sortDropdown">
                 <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Allocation from JA (HM)') }}">Awaiting Allocation from JA (HM)</a></li>
@@ -16,6 +16,28 @@
             </ul>
         </div>
 {% endif %}
+    </div>
+    <!-- Sort By Dropdown -->
+    <div class="d-flex justify-content-end mb-3">
+        <div class="dropdown">
+            <button class="btn btn-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                Sort By
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                <li>
+                    <a class="dropdown-item" href="#" onclick="openSortInputModal('name')">Name</a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" onclick="openSortInputModal('arrival_date')">Arrival Date</a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" onclick="openSortInputModal('departure_date')">Departure Date</a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="#" onclick="openSortInputModal('email')">Email</a>
+                </li>
+            </ul>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover table-striped align-middle text-center">
@@ -56,7 +78,48 @@
                             <span class="badge bg-secondary text-white">{{ booking.status }}</span>
                         {% endif %}
                     </td>
-                    <td>{{ booking.remarks or "No remarks available." }}</td>
+                    <td>
+                        {% if booking.remarks %}
+                            <!-- View Remarks Button -->
+                            <button class="btn btn-info btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
+                            <button class="btn btn-primary btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
+                        {% else %}
+                            <!-- Add Remark Button -->
+                            <button class="btn btn-info btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
+                            <button class="btn btn-primary btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- Modal for Adding/Viewing Remarks -->
+                    <div class="modal fade" id="remarksModal" tabindex="-1" aria-labelledby="remarksModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="remarksModalLabel">Remarks</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <!-- Add Remark Form -->
+                                    <div id="addRemarkSection" style="display: none;">
+                                        <form method="POST" action="{{ url_for('admin.add_remark', booking_id=0) }}" id="addRemarkForm">
+                                            <div class="mb-3">
+                                                <label for="remarkContent" class="form-label">Add Remark</label>
+                                                <textarea class="form-control" id="remarkContent" name="remark" rows="4" required></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-success">Save Remark</button>
+                                        </form>
+                                    </div>
+                    
+                                    <!-- View Remarks Section -->
+                                    <div id="viewRemarksSection" style="display: none;">
+                                        <ul class="list-group" id="remarksList">
+                                            <!-- Remarks will be dynamically loaded here -->
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <td>
                         <!-- View PDF Button -->
                         <button class="btn btn-info btn-sm mb-2" onclick="viewPDF('{{ booking.id }}')">View PDF</button>
@@ -84,6 +147,28 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Modal for Sort Input -->
+<div class="modal fade" id="sortInputModal" tabindex="-1" aria-labelledby="sortInputModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sortInputModalLabel">Enter Search Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sortInputForm">
+                    <div class="mb-3">
+                        <label for="sortInputValue" class="form-label">Enter Value</label>
+                        <input type="text" class="form-control" id="sortInputValue" placeholder="Enter value" required>
+                        <input type="date" class="form-control d-none" id="sortInputDate" placeholder="Select date">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -175,6 +260,47 @@
         </div>
     </div>
 </div>
+<script>
+    function openRemarksModal(bookingId, mode) {
+        const remarksModal = new bootstrap.Modal(document.getElementById('remarksModal'));
+        const addRemarkSection = document.getElementById('addRemarkSection');
+        const viewRemarksSection = document.getElementById('viewRemarksSection');
+        const addRemarkForm = document.getElementById('addRemarkForm');
+        const remarksList = document.getElementById('remarksList');
+
+        // Reset sections
+        addRemarkSection.style.display = 'none';
+        viewRemarksSection.style.display = 'none';
+
+        if (mode === 'add') {
+            // Show Add Remark Section
+            addRemarkSection.style.display = 'block';
+            addRemarkForm.action = `/admin/add_remark/${bookingId}`;
+        } else if (mode === 'view') {
+            // Show View Remarks Section
+            viewRemarksSection.style.display = 'block';
+
+            // Fetch remarks dynamically
+            fetch(`/admin/get_remarks/${bookingId}`)
+                .then(response => response.json())
+                .then(data => {
+                    remarksList.innerHTML = ''; // Clear previous remarks
+                    data.forEach(remark => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item';
+                        listItem.innerHTML = `<strong>${remark.added_by}:</strong> ${remark.content}`;
+                        remarksList.appendChild(listItem);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching remarks:', error);
+                    remarksList.innerHTML = '<li class="list-group-item text-danger">Failed to load remarks.</li>';
+                });
+        }
+
+        remarksModal.show();
+    }
+</script>
 <script>
     function openMessageModal(bookingId, studentEmail) {
         document.getElementById('messageBookingId').value = bookingId;
@@ -281,6 +407,50 @@
                 alert('Failed to fetch payment details. Please try again later.');
             });
     }
+</script>
+<script>
+   function openSortInputModal(field) {
+    // Store the selected field in a hidden input or a global variable
+    document.getElementById('sortInputForm').dataset.field = field;
+
+    // Toggle between text input and date picker
+    const textInput = document.getElementById('sortInputValue');
+    const dateInput = document.getElementById('sortInputDate');
+
+    if (field === 'arrival_date' || field === 'departure_date') {
+        textInput.classList.add('d-none');
+        dateInput.classList.remove('d-none');
+        dateInput.required = true;
+        textInput.required = false;
+    } else {
+        textInput.classList.remove('d-none');
+        dateInput.classList.add('d-none');
+        textInput.required = true;
+        dateInput.required = false;
+    }
+
+    // Show the modal
+    const sortInputModal = new bootstrap.Modal(document.getElementById('sortInputModal'));
+    sortInputModal.show();
+}
+
+document.getElementById('sortInputForm').addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    // Get the selected field and input value
+    const field = event.target.dataset.field;
+    const textValue = document.getElementById('sortInputValue').value;
+    const dateValue = document.getElementById('sortInputDate').value;
+
+    const value = field === 'arrival_date' || field === 'departure_date' ? dateValue : textValue;
+
+    // Redirect to the URL with the search parameters
+    const searchUrl = new URL(window.location.href);
+    searchUrl.searchParams.set('sort_by', field);
+    searchUrl.searchParams.set('search_value', value);
+
+    window.location.href = searchUrl.toString();
+});
 </script>
 <style>
     .room-box {

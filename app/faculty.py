@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, jsonify, send_file
-from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel, Student, ProjectAccommodationRequest, Admin
+from app.models import Warden, DummyBatch, DummyHostel, DummyAllocation, CustomUser, Faculty, InternshipApplication, GuestRoomBooking, Hostel, Student, ProjectAccommodationRequest, Admin, Remark, Notification, Room, Guest
 from app.database import db
 from flask_mail import Message
 from app import mail 
@@ -86,7 +86,7 @@ def get_signature(faculty_id):
     faculty = Faculty.query.get(faculty_id)
     if faculty and faculty.signature:
         return Response(faculty.signature, mimetype="image/png")
-    abort(404)  # Return 404 if no signature is found
+    abort(404)  # Return 404 if no signature is found 
 
 @faculty_bp.route("/faculty/pending_approvals", methods=["GET", "POST"])
 def pending_approvals():
@@ -559,23 +559,67 @@ def handle_guest_room_booking(booking_id):
         return redirect(url_for('auth.login'))
 
     action = request.form.get('action')
-    booking = GuestRoomBooking.query.get(booking_id)
+    booking = GuestRoomBooking.query.get(booking_id) 
 
-    if booking:
-        if action == 'approve':
-            # Directly approve the booking without checking for available guest rooms
-            booking.status = 'Approved'
-            db.session.commit()
-            flash("Booking approved successfully.", "success")
-        elif action == 'reject':
-            # Reject the booking
-            booking.status = 'Rejected by Chief Warden'
-            db.session.commit()
-            flash("Booking rejected successfully.", "danger")
-    else:
+    if not booking:
         flash("Booking not found.", "danger")
+        return redirect(url_for('faculty.guest_room_booking_approvals'))
+
+    new_remark = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.id.desc()).first()
+    db.session.add(new_remark)
+    db.session.commit()
+    flash("Remark added successfully.", "success")
+
+    if action == 'approve':
+        # Approve the booking
+        booking.status = 'Successful Approval'
+        db.session.commit()
+        flash("Booking approved successfully.", "success")
+    elif action == 'reject':
+        # Reject the booking
+        room_no = booking.room_no
+        if room_no:
+            # Fetch the room and update its is_booked status
+            room = Room.query.filter_by(room_no=room_no).first()
+            if room:
+                room.is_booked = False  # Mark the room as not booked
+        booking.room_no = None
+        booking.status = 'Rejected by Chief Warden'
+        flash("Booking rejected successfully.", "danger")
+
+        # Notify the applicant about the rejection
+        applicant_email = None
+        student = Student.query.filter_by(student_id=booking.applicant_id).first()
+        if student and student.user.email:
+            applicant_email = student.user.email
+        else:
+            guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
+            if guest and guest.user.email:
+                applicant_email = guest.user.email
+
+        if applicant_email:
+            # Add a notification for the student/guest
+            notification = Notification(
+                sender_email=faculty.user.email,
+                recipient_email=applicant_email,
+                content=f"Your booking has been cancelled for Room Number: {room_no}. Reason for cancelletion: {new_remark.content}.",
+                timestamp=datetime.utcnow()
+            )
+            db.session.add(notification)
+
+            # Send email notification
+            msg = Message(
+                "Room Booking Cancelled",
+                sender=faculty.user.email,
+                recipients=[applicant_email]
+            )
+            msg.body = f"Your booking has been cancelled for Room Number: {room_no} due to: {new_remark.content}."
+            mail.send(msg)
+
+        db.session.commit()
 
     return redirect(url_for('faculty.guest_room_booking_approvals'))
+
 
 @faculty_bp.route("/faculty/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
 def faculty_view_guest_room_booking_pdf(booking_id):
@@ -588,10 +632,13 @@ def faculty_view_guest_room_booking_pdf(booking_id):
         return redirect(url_for('faculty.guest_room_booking_approvals'))
 
     # Retrieve the student's details from the Student model
+    # Retrieve the student's details from the Student model
     student = Student.query.filter_by(student_id=booking.applicant_id).first()
     if not student:
-        flash("Student details not found.", "danger")
-        return redirect(url_for('faculty.guest_room_booking_approvals'))
+        guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
+        if not guest:
+            flash("Applicant details not found.", "danger")
+            return redirect(url_for('faculty.guest_room_booking_approvals'))
 
     template_path = "static/pdf formats/Guest room booking form.pdf"
 
@@ -599,14 +646,29 @@ def faculty_view_guest_room_booking_pdf(booking_id):
     can = canvas.Canvas(packet, pagesize=letter)
     can.setFont("Helvetica", 10)
 
-    # --- Fill Data on PDF ---
-    can.drawString(70, 605, f"{booking.applicant.name}")  # Applicant name
-    can.drawString(460, 605, f"{student.student_phone or 'N/A'}")  # Use student's phone number
-    can.drawString(350, 605, f"{student.student_roll or 'N/A'}")  # Use student's entry number
-    can.drawString(160, 605, "Student")  # Indicate the role as "Student"
-    can.drawString(265, 605, f"{student.department or 'N/A'}")
+    if student:
+        applicant_name = booking.applicant.name
+        applicant_phone = student.student_phone or 'N/A'
+        applicant_entry = student.student_roll or 'N/A'
+        applicant_department_or_address = student.department or 'N/A'
+        can.drawString(160, 605, "Student")  # Indicate the role as "Student"
+    elif guest:
+        applicant_name = booking.applicant.name
+        applicant_phone = guest.phone or 'N/A'
+        applicant_entry = "N/A"  # Guests don't have a roll number
+        applicant_role = "Guest"
+        applicant_department_or_address = guest.address or 'N/A'
+
+    # Extract email without domain
     email_without_domain = booking.applicant.email.split('@')[0]
-    can.drawString(265, 582, f"{email_without_domain}")
+
+    # Fill data on the PDF
+    can.drawString(50, 605, f"{applicant_name}")  # Applicant name
+    can.drawString(460, 605, f"{applicant_phone}")  # Applicant phone
+    can.drawString(350, 605, f"{applicant_entry}")  # Applicant entry number or N/A
+    can.drawString(160, 605, f"{applicant_role}")  # Role: Student or Guest
+    can.drawString(265, 605, f"{applicant_department_or_address}")  # Department or Address
+    can.drawString(265, 582, f"{email_without_domain}")  #
 
     can.drawString(250, 560, f"{booking.guests_male}")
     can.drawString(300, 560, f"{booking.guests_female}")
@@ -644,7 +706,7 @@ def faculty_view_guest_room_booking_pdf(booking_id):
     can.drawString(125, 220, f"{booking.remarks or 'N/A'}")
 
     # Render hostel details if approved by Chief Warden
-    if booking.status == "Approved" and booking.hostel:
+    if booking.status == "Successful Approval" and booking.hostel:
         can.drawString(300, 128, f"{booking.hostel.hostel_name}")
 
     can.save()
@@ -1121,3 +1183,62 @@ def hod_approve_request():
         return redirect(url_for('faculty.hod_approve_request'))
 
     return render_template("basic/hod_approve_request.html")
+
+
+@faculty_bp.route("/faculty/get_payment_details/<int:booking_id>", methods=["GET"])
+def faculty_get_payment_details(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking or not booking.payment_details:
+        return jsonify({"error": "Payment details not found"}), 404
+
+    return jsonify(booking.payment_details)
+
+@faculty_bp.route('/faculty/get_remarks/<int:booking_id>', methods=['GET'])
+def faculty_get_remarks(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+    
+    remarks = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.timestamp.desc()).all()
+
+    remarks = [
+        {
+            "added_by": remark.added_by,
+            "content": remark.content,
+            "timestamp": remark.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        for remark in remarks
+    ]
+
+    return jsonify({"remarks": remarks})
+
+@faculty_bp.route('/faculty/add_remark/<int:booking_id>', methods=['POST'])
+def add_remark(booking_id):
+    if 'user_id' not in session or session.get('user_role') != 'faculty':
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    remark_content = request.form.get('remark')
+    faculty = Faculty.query.filter_by(faculty_id=session['user_id']).first()
+    booking = GuestRoomBooking.query.get(booking_id)
+
+    if not booking or not faculty:
+        flash("Invalid booking or faculty.", "danger")
+        return redirect(url_for('faculty.guest_room_booking_approvals'))
+
+    # Add the remark
+    new_remark = Remark(
+        booking_id=booking.id,
+        content=remark_content,
+        added_by=faculty.user.name if faculty.user else "Unknown Faculty"
+    )
+    db.session.add(new_remark)
+    db.session.commit()
+
+    flash("Remark added successfully.", "success")
+    return redirect(url_for('faculty.guest_room_booking_approvals'))

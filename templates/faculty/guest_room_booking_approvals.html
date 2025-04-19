@@ -25,17 +25,39 @@
                     <td>{{ booking.purpose_of_visit }}</td>
                     <td>{{ booking.date_arrival }} {{ booking.time_arrival }}</td>
                     <td>{{ booking.date_departure }} {{ booking.time_departure }}</td>
-                    <td>{{ booking.status }}</td>
-                    <td>{{ booking.remarks or "No remarks available." }}</td>
                     <td>
-                        <!-- View PDF Button -->
-                        <button class="btn btn-info btn-sm mb-2" onclick="viewPDF('{{ booking.id }}')">View PDF</button>
-                        
-                        <!-- Approve/Reject Buttons -->
-                        <form method="POST" action="{{ url_for('faculty.handle_guest_room_booking', booking_id=booking.id) }}" class="d-inline">
-                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Approve</button>
-                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm mb-2">Reject</button>
-                        </form>
+                        {% if booking.status == "Pending approval from Chief Warden" %}
+                            <span class="badge bg-warning text-dark">Awaiting Approval</span>
+                        {% elif booking.status == "Approved" %}
+                            <span class="badge bg-success text-white">Approved</span>
+                        {% elif booking.status == "Rejected" %}
+                            <span class="badge bg-danger text-white">Rejected</span>
+                        {% else %}
+                            <span class="badge bg-secondary text-white">{{ booking.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if booking.remarks %}
+                            <!-- View Remarks Button -->
+                            <button class="btn btn-info btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
+                            <button class="btn btn-primary btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
+                        {% else %}
+                            <!-- Add Remark Button -->
+                            <button class="btn btn-info btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
+                            <button class="btn btn-primary btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex flex-column gap-2">
+                            <button class="btn btn-info btn-sm" onclick="viewPDF('{{ booking.id }}')">View PDF</button>
+                            <form method="POST" action="{{ url_for('faculty.handle_guest_room_booking', booking_id=booking.id) }}" class="d-inline">
+                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">Approve</button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">Reject</button>
+                            </form>
+                            {% if booking.payment_details %}
+                            <button class="btn btn-primary btn-sm" onclick="viewPaymentDetails('{{ booking.id }}')">View Payment Details</button>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -44,7 +66,7 @@
     </div>
 </div>
 
-<!-- Modal for Viewing PDF -->
+<!-- PDF Modal -->
 <div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -59,7 +81,94 @@
     </div>
 </div>
 
+<div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-labelledby="paymentDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentDetailsModalLabel">Payment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Email:</strong> <span id="paymentEmail"></span></p>
+                <p><strong>Name:</strong> <span id="paymentName"></span></p>
+                <p><strong>Designation:</strong> <span id="paymentDesignation"></span></p>
+                <p><strong>Mobile:</strong> <span id="paymentMobile"></span></p>
+                <p><strong>Hostel Name:</strong> <span id="paymentHostel"></span></p>
+                <p><strong>Amount Deposited:</strong> ₹<span id="paymentAmount"></span></p>
+                <p><strong>Room Rent Month:</strong> <span id="paymentMonth"></span></p>
+                <p><strong>Year:</strong> <span id="paymentYear"></span></p>
+                <p><strong>Date of Deposit:</strong> <span id="paymentDate"></span></p>
+                <p><strong>UTR/Transaction No.:</strong> <span id="paymentUTR"></span></p>
+                <p><strong>Component of Amount:</strong> <span id="paymentComponent"></span></p>
+                <p><strong>Declaration:</strong> <span id="paymentDeclaration"></span></p>
+                <p><strong>Payment Proof:</strong> <a id="paymentProofLink" href="#" target="_blank">View Payment Proof</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remarks Modal -->
+<div class="modal fade" id="remarksModal" tabindex="-1" aria-labelledby="remarksModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="remarksModalLabel">Remarks</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="addRemarkSection" class="d-none">
+                    <form method="POST" action="{{ url_for('faculty.add_remark', booking_id=0) }}" id="addRemarkForm">
+                        <div class="mb-3">
+                            <label for="remarkContent" class="form-label">Add Remark</label>
+                            <textarea class="form-control" id="remarkContent" name="remark" rows="4" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">Save Remark</button>
+                    </form>
+                </div>
+                <div id="viewRemarksSection" class="d-none">
+                    <ul class="list-group" id="remarksList"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    function openRemarksModal(bookingId, mode) {
+    const remarksModal = new bootstrap.Modal(document.getElementById('remarksModal'));
+    const addRemarkSection = document.getElementById('addRemarkSection');
+    const viewRemarksSection = document.getElementById('viewRemarksSection');
+    const addRemarkForm = document.getElementById('addRemarkForm');
+    const remarksList = document.getElementById('remarksList');
+
+    addRemarkSection.classList.add('d-none');
+    viewRemarksSection.classList.add('d-none');
+
+    if (mode === 'add') {
+        addRemarkSection.classList.remove('d-none');
+        addRemarkForm.action = `/faculty/add_remark/${bookingId}`;
+    } else if (mode === 'view') {
+        viewRemarksSection.classList.remove('d-none');
+        fetch(`/faculty/get_remarks/${bookingId}`)
+            .then(response => response.json())
+            .then(data => {
+                remarksList.innerHTML = '';
+                data.remarks.forEach(remark => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item';
+                    listItem.innerHTML = `<strong>${remark.added_by}:</strong> ${remark.content} <em>(${remark.timestamp})</em>`;
+                    remarksList.appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching remarks:', error);
+                remarksList.innerHTML = '<li class="list-group-item text-danger">Failed to load remarks.</li>';
+            });
+    }
+
+    remarksModal.show();
+    }
+
     function viewPDF(bookingId) {
         const pdfUrl = `/faculty/view_guest_room_booking_pdf/${bookingId}`;
         document.getElementById('pdfViewer').src = pdfUrl;
@@ -67,4 +176,36 @@
         pdfModal.show();
     }
 </script>
+<script>function viewPaymentDetails(bookingId) {
+    fetch(`/faculty/get_payment_details/${bookingId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('paymentEmail').textContent = data.email || 'N/A';
+            document.getElementById('paymentName').textContent = data.name || 'N/A';
+            document.getElementById('paymentDesignation').textContent = data.designation || 'N/A';
+            document.getElementById('paymentMobile').textContent = data.mobile || 'N/A';
+            document.getElementById('paymentHostel').textContent = data.hostel_name || 'N/A';
+            document.getElementById('paymentAmount').textContent = data.amount_deposited || 'N/A';
+            document.getElementById('paymentMonth').textContent = data.room_rent_month || 'N/A';
+            document.getElementById('paymentYear').textContent = data.year || 'N/A';
+            document.getElementById('paymentDate').textContent = data.date_of_deposit || 'N/A';
+            document.getElementById('paymentUTR').textContent = data.utr_number || 'N/A';
+            document.getElementById('paymentComponent').textContent = data.component_of_amount || 'N/A';
+            document.getElementById('paymentDeclaration').textContent = data.declaration || 'N/A';
+            document.getElementById('paymentProofLink').href = `/uploads/${data.payment_proof}`;
+            document.getElementById('paymentProofLink').textContent = 'View Payment Proof';
+
+            const modal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error fetching payment details:', error);
+            alert('Failed to fetch payment details. Please try again later.');
+        });
+}</script>
 {% endblock %}

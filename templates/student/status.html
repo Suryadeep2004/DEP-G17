@@ -32,7 +32,7 @@
                         Awaiting final confirmation from JA (HM).
                     {% elif booking.status == "Pending approval from Assistant Registrar (HM)" %}
                         Awaiting final confirmation from AR (HM).
-                    {% elif booking.status == "Approved" %}
+                    {% elif booking.status == "Successful Approval" %}
                         Approved.
                     {% elif "Rejected" in booking.status %}
                         {{ booking.status }}.
@@ -49,7 +49,7 @@
                             rejected
                         {% elif booking.status in ['Awaiting Allocation from JA (HM)', 'Awaiting Payment from Applicant', 'Awaiting Payment Verification from JA (HM)', 'Awaiting Payment from Student'] %}
                             pending
-                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Approved'] %}
+                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Successful Approval'] %}
                             completed
                         {% else %}
                             normal
@@ -64,7 +64,7 @@
                             rejected
                         {% elif booking.status == 'Pending approval from Assistant Registrar (HM)' %}
                             pending
-                        {% elif booking.status in ['Approved', 'Rejected by Chief Warden'] %}
+                        {% elif booking.status in ['Successful Approval', 'Rejected by Chief Warden'] %}
                             completed
                         {% else %}
                             normal

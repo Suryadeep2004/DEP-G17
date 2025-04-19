@@ -29,16 +29,19 @@
     </div>
 </div>
 
-<!-- Notification Bell -->
 <div class="notification-container">
     <div class="dropdown">
-        <a class="btn btn-light dropdown-toggle notification-bell" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <a class="btn btn-light dropdown-toggle notification-bell shadow" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-bell"></i>
             {% if notifications|selectattr('is_read', 'equalto', False)|list|length > 0 %}
                 <span class="badge bg-danger">{{ notifications|selectattr('is_read', 'equalto', False)|list|length }}</span>
             {% endif %}
         </a>
         <div class="dropdown-menu notification-bar shadow" aria-labelledby="notificationDropdown">
+            <div class="text-center mt-2">
+                <button class="btn btn-sm btn-primary" id="markAllRead">Mark All as Read</button>
+            </div>
+            <hr>
             {% if notifications|length > 0 %}
                 <ul class="list-unstyled px-3">
                     {% for notification in notifications %}
@@ -49,9 +52,6 @@
                         </li>
                     {% endfor %}
                 </ul>
-                <div class="text-center mt-2">
-                    <button class="btn btn-sm btn-primary" id="markAllRead">Mark All as Read</button>
-                </div>
             {% else %}
                 <div class="text-muted text-center py-2">No notifications</div>
             {% endif %}
@@ -59,8 +59,8 @@
     </div>
 </div>
 
-<!-- Styles -->
 <style>
+/* Notification container fixed at the top-right corner */
 .notification-container {
     position: fixed;
     top: 20px;
@@ -68,23 +68,40 @@
     z-index: 1050;
 }
 
+/* Notification bell styling */
 .notification-bell {
     position: relative;
-    font-size: 1.5rem;
+    font-size: 1.8rem;
+    color: #333;
+    background-color: #f8f9fa;
+    border-radius: 50%;
+    padding: 10px;
+    transition: all 0.3s ease;
 }
 
+.notification-bell:hover {
+    background-color: #e0e0e0;
+    transform: scale(1.1);
+}
+
+/* Badge styling */
 .badge {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: 5px;
+    right: 5px;
     font-size: 0.75rem;
+    padding: 5px 7px;
+    border-radius: 50%;
+    background-color: #dc3545;
+    color: #fff;
 }
 
+/* Notification dropdown styling */
 .notification-bar {
     position: absolute;
     top: 50px;
     right: 0;
-    width: 400px;
+    width: 1000px;
     max-height: 300px;
     overflow-y: auto;
     padding: 15px;
@@ -97,6 +114,7 @@
     transition: all 0.3s ease;
 }
 
+/* Notification list styling */
 .notification-bar ul {
     margin: 0;
     padding: 0;
@@ -120,9 +138,55 @@
     color: #007bff;
     margin-right: 10px;
 }
+
+/* Responsive styling for smaller screens */
+@media (max-width: 768px) {
+    .notification-container {
+        top: 10px;
+        right: 10px;
+    }
+
+    .notification-bell {
+        font-size: 1.8rem;
+        padding: 10px;
+    }
+
+    .badge {
+        top: 3px;
+        right: 3px;
+        font-size: 0.75rem;
+        padding: 5px 7px;
+    }
+
+    .notification-bar {
+        width: 300px;
+    }
+}
+
+@media (max-width: 576px) {
+    .notification-container {
+        top: 5px;
+        right: 5px;
+    }
+
+    .notification-bell {
+        font-size: 1.8rem;
+        padding: 10px;
+    }
+
+    .badge {
+        top: 5px;
+        right: 5px;
+        font-size: 0.75rem;
+        padding: 5px 7px;
+    }
+
+    .notification-bar {
+        width: 250px;
+    }
+}
 </style>
 
-<!-- JavaScript -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const markAllReadButton = document.getElementById("markAllRead");
@@ -144,7 +208,6 @@
                         if (badge) {
                             badge.style.display = "none";
                         }
-                        alert("All notifications marked as read.");
                     } else {
                         console.error('Failed to mark notifications as read');
                     }

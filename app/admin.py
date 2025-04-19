@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification, Guest
+from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification, Guest, Remark
 import csv
 import io
 from io import BytesIO
@@ -545,6 +545,31 @@ def guest_room_booking_approvals():
     elif admin.designation == 'Chief Warden':
         bookings = GuestRoomBooking.query.filter_by(status='Pending approval from Chief Warden').all()
 
+    # Handle search and sort functionality
+    sort_by = request.args.get('sort_by')
+    search_value = request.args.get('search_value')
+    # Ensure bookings is a query object
+    bookings_query = GuestRoomBooking.query.join(CustomUser, GuestRoomBooking.applicant_id == CustomUser.id)
+    if sort_by and search_value:
+        if sort_by == 'name':
+            bookings_query = bookings_query.filter(CustomUser.name.ilike(f"%{search_value}%"))
+        elif sort_by == 'email':
+            bookings_query = bookings_query.filter(CustomUser.email.ilike(f"%{search_value}%"))
+        elif sort_by == 'arrival_date':
+            try:
+                search_date = datetime.strptime(search_value, '%Y-%m-%d').date()
+                bookings_query = bookings_query.filter(GuestRoomBooking.date_arrival == search_date)
+            except ValueError:
+                flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+        elif sort_by == 'departure_date':
+            try:
+                search_date = datetime.strptime(search_value, '%Y-%m-%d').date()
+                bookings_query = bookings_query.filter(GuestRoomBooking.date_departure == search_date)
+            except ValueError:
+                flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+
+    bookings = bookings_query.all()
+
     return render_template("admin/guest_room_booking_approvals.html", bookings=bookings, admin=admin)
 
 @admin_bp.route("/admin/handle_guest_room_booking/<int:booking_id>", methods=["POST"])
@@ -559,7 +584,13 @@ def handle_guest_room_booking(booking_id):
         return redirect(url_for('auth.login'))
 
     action = request.form.get('action')
+    new_remark = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.id.desc()).first()
+ 
     booking = GuestRoomBooking.query.get(booking_id)
+    db.session.add(new_remark)
+    # Commit the changes
+    db.session.commit()
+    flash("Remark added successfully.", "success")
 
     if not booking:
         flash("Booking not found.", "danger")
@@ -567,20 +598,58 @@ def handle_guest_room_booking(booking_id):
 
     if action == 'approve':
         if admin.designation == 'JA (HM)' and booking.status == "Awaiting Allocation from JA (HM)": 
-            booking.status = "Awaiting Payment from Student"
+            booking.status = "Awaiting Payment from Student"  # Save the remark
             flash("Room Allocated temporarily & Awaiting payment from Student.", "success")
         elif admin.designation == 'JA (HM)' and booking.status == "Awaiting Payment Verification from JA (HM)":
-            booking.status = "Pending approval from Assistant Registrar (HM)"
+            booking.status = "Pending approval from Assistant Registrar (HM)"# Save the remark
             flash("Payment verified by JA (HM). Forwarded to AR (HM) for approval.", "success")
         elif admin.designation == 'Assistant Registrar (HM)' and booking.status == "Pending approval from Assistant Registrar (HM)":
-            booking.status = "Pending approval from Chief Warden"
+            booking.status = "Pending approval from Chief Warden" # Save the remark
             flash("Forwarded to Chief Warden for approval.", "success")
         elif admin.designation == 'Chief Warden' and booking.status == "Pending approval from Chief Warden":
-            booking.status = "Successful Approval"
+            booking.status = "Successful Approval"  # Save the remark
             flash("Booking approved by Chief Warden.", "success")
     elif action == 'reject':
-        booking.status = f"Rejected by {admin.designation}"
-        flash(f"Booking rejected by {admin.designation}.", "danger")
+        # Deallocate the room if it was temporarily allocated
+        room_no= booking.room_no
+        if room_no:
+    # Fetch the room and update its is_booked status
+            room = Room.query.filter_by(room_no=room_no).first()
+            if room:
+                room.is_booked = False  # Mark the room as not booked
+
+        booking.room_no = None
+        booking.status = f"Rejected by {admin.designation}"  # Save the remark
+        flash(f"Booking rejected by {admin.designation}. Temporary room allocation has been deallocated.", "danger")
+
+        # Notify the applicant about the rejection
+        applicant_email = None
+        student = Student.query.filter_by(student_id=booking.applicant_id).first()
+        if student and student.user.email:
+            applicant_email = student.user.email
+        else:
+            guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
+            if guest and guest.user.email:
+                applicant_email = guest.user.email
+
+        if applicant_email:
+            # Add a notification for the student/guest
+            notification = Notification(
+                sender_email=admin.user.email,
+                recipient_email=applicant_email,
+                content=f"Your booking has been cancelled. The temporary room allocation (Room Number: {room_no}) has been revoked by {admin.designation}. Reason for cancellation: {new_remark.content}. If you have any questions, please contact the administration.",
+                timestamp=datetime.utcnow()
+            )
+            db.session.add(notification)
+
+            # Send email notification
+            msg = Message(
+                "Room Booking Cancelled",
+                sender=admin.user.email,
+                recipients=[applicant_email]
+            )
+            msg.body = f"Your booking has been cancelled for Room Number: {room_no} due to: {new_remark.content}."
+            mail.send(msg)
 
     db.session.commit()
     return redirect(url_for('admin.guest_room_booking_approvals'))
@@ -591,7 +660,7 @@ def admin_view_guest_room_booking_pdf(booking_id):
     if 'user_id' not in session or session.get('user_role') != 'admin':
         return redirect(url_for('auth.login'))
 
-    booking = GuestRoomBooking.query.get(booking_id)
+    booking = GuestRoomBooking.query.get(booking_id) 
     if not booking:
         flash("Guest room booking application not found.", "danger")
         return redirect(url_for('admin.guest_room_booking_approvals'))
@@ -599,8 +668,10 @@ def admin_view_guest_room_booking_pdf(booking_id):
     # Retrieve the student's details from the Student model
     student = Student.query.filter_by(student_id=booking.applicant_id).first()
     if not student:
-        flash("Student details not found.", "danger")
-        return redirect(url_for('admin.guest_room_booking_approvals'))
+        guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
+        if not guest:
+            flash("Applicant details not found.", "danger")
+            return redirect(url_for('admin.guest_room_booking_approvals'))
 
     template_path = "static/pdf formats/Guest room booking form.pdf"
 
@@ -608,14 +679,31 @@ def admin_view_guest_room_booking_pdf(booking_id):
     can = canvas.Canvas(packet, pagesize=letter)
     can.setFont("Helvetica", 10)
 
-    # --- Fill Data on PDF ---
-    can.drawString(70, 605, f"{booking.applicant.name}")  # Applicant name
-    can.drawString(460, 605, f"{student.student_phone or 'N/A'}")  # Use student's phone number
-    can.drawString(350, 605, f"{student.student_roll or 'N/A'}")  # Use student's entry number
-    can.drawString(160, 605, "Student")  # Indicate the role as "Student"
-    can.drawString(265, 605, f"{student.department or 'N/A'}")
+    if student:
+        applicant_name = booking.applicant.name
+        applicant_phone = student.student_phone or 'N/A'
+        applicant_entry = student.student_roll or 'N/A'
+        applicant_department_or_address = student.department or 'N/A'
+        can.drawString(160, 605, "Student")  # Indicate the role as "Student"
+    elif guest:
+        applicant_name = booking.applicant.name
+        applicant_phone = guest.phone or 'N/A'
+        applicant_entry = "N/A"  # Guests don't have a roll number
+        applicant_role = "Guest"
+        applicant_department_or_address = guest.address or 'N/A'
+
+    # Extract email without domain
     email_without_domain = booking.applicant.email.split('@')[0]
-    can.drawString(265, 582, f"{email_without_domain}")
+
+    # Fill data on the PDF
+    can.drawString(50, 605, f"{applicant_name}")  # Applicant name
+    can.drawString(460, 605, f"{applicant_phone}")  # Applicant phone
+    can.drawString(350, 605, f"{applicant_entry}")  # Applicant entry number or N/A
+    can.drawString(160, 605, f"{applicant_role}")  # Role: Student or Guest
+    can.drawString(265, 605, f"{applicant_department_or_address}")  # Department or Address
+    can.drawString(265, 582, f"{email_without_domain}")  #
+
+    # --- Fill Data on PDF ---
 
     can.drawString(250, 560, f"{booking.guests_male}")
     can.drawString(300, 560, f"{booking.guests_female}")
@@ -653,7 +741,7 @@ def admin_view_guest_room_booking_pdf(booking_id):
     can.drawString(125, 220, f"{booking.remarks or 'N/A'}")
 
     # Render hostel details if approved by Chief Warden
-    if booking.status == "Approved" and booking.hostel:
+    if booking.status == "Successful Approval" and booking.hostel:
         can.drawString(300, 128, f"{booking.hostel.hostel_name}")
 
     # Render signatures based on approval status
@@ -661,17 +749,17 @@ def admin_view_guest_room_booking_pdf(booking_id):
     signature_section_height = 110
     can.setFont("Helvetica-Bold", 12)
 
-    if booking.status in ["Approved by JA (HM)", "Approved by Assistant Registrar (HM)", "Approved"]:
+    if booking.status in ["Approved by JA (HM)", "Approved by Assistant Registrar (HM)", "Successful Approval"]:
         ja_hm = Admin.query.filter_by(designation="JA (HM)").first()
         if ja_hm and ja_hm.signature:
             can.drawImage(ImageReader(BytesIO(ja_hm.signature)), 470, y_position - 10, width=50, height=30)
 
-    if booking.status in ["Approved by Assistant Registrar (HM)", "Approved"]:
+    if booking.status in ["Approved by Assistant Registrar (HM)", "Successful Approval"]:
         ar_hm = Admin.query.filter_by(designation="Assistant Registrar (HM)").first()
         if ar_hm and ar_hm.signature:
             can.drawImage(ImageReader(BytesIO(ar_hm.signature)), 100, y_position - 10 - 70, width=50, height=30)
 
-    if booking.status == "Approved":
+    if booking.status == "Successful Approval":
         chief_warden_entry = Warden.query.filter_by(is_chief=1).first()
         if chief_warden_entry:
             chief_warden = Faculty.query.filter_by(faculty_id=chief_warden_entry.faculty_id).first()
@@ -949,9 +1037,27 @@ def view_project_accommodation_pdf(request_id):
 
 @admin_bp.route('/admin/add_remark/<int:booking_id>', methods=['POST'])
 def add_remark(booking_id):
-    remark = request.form.get('remark')
-    # Save the remark to the database or process it as needed
-    flash(f'Remark added for booking ID {booking_id}: {remark}', 'success')
+    remark_content = request.form.get('remark')
+    admin = Admin.query.filter_by(admin_id=session['user_id']).first()
+    booking = GuestRoomBooking.query.get(booking_id)
+
+    if not booking or not admin:
+        flash('Invalid booking or admin.', 'danger')
+        return redirect(url_for('admin.guest_room_booking_approvals'))
+    
+    # Use the name from the related CustomUser model
+    admin_name = admin.user.name if admin.user else "Unknown Admin"
+
+    # Save the remark
+    new_remark = Remark(
+        booking_id=booking_id,
+        content=remark_content,
+        added_by=admin_name
+    )
+    db.session.add(new_remark)
+    db.session.commit()
+
+    flash('Remark added successfully.', 'success')
     return redirect(url_for('admin.guest_room_booking_approvals'))
 
 @admin_bp.route("/admin/get_room_availability/<int:booking_id>", methods=["GET"])
@@ -974,13 +1080,20 @@ def get_room_availability(booking_id):
         is_booked = False
         for b in all_bookings:
             if (
-                b.status == "Approved" and  # Only consider approved bookings
-                b.room_no == room.room_no and  # Check if the room number matches
+                b.status in [
+                    "Awaiting Allocation from JA (HM)",
+                    "Awaiting Payment from Applicant",
+                    "Awaiting Payment Verification from JA (HM)",
+                    "Pending approval from Assistant Registrar (HM)",
+                    "Pending approval from Chief Warden",
+                    "Successful Approval"
+                ] and
+                b.room_no == room.room_no and
                 (
-                    (b.date_arrival <= booking.date_departure and b.date_departure >= booking.date_arrival) or  # Overlapping dates
-                    (b.date_arrival <= booking.date_arrival and b.date_departure >= booking.date_departure)  # Fully overlapping
+                    (b.date_arrival <= booking.date_departure and b.date_departure >= booking.date_arrival) or
+                    (b.date_arrival <= booking.date_arrival and b.date_departure >= booking.date_departure)
                 ) and
-                b.date_departure >= datetime.now().date()  # Only consider future bookings
+                b.date_departure >= datetime.now().date()
             ):
                 is_booked = True
                 break
@@ -1048,12 +1161,21 @@ def allocate_room():
 
         # Send email notification
         msg = Message(
-            f"Room Allocation - Payment Details Required {booking.room_no}",
+            f"Room Allocation - Payment Details Required {room.room_no}",
             sender=admin.user.email,
             recipients=[applicant_email]
         )
-        msg.body = f"Your room has been temporarily allocated. Please log in to your dashboard and fill in the payment details {booking.room_n.o}."
+        msg.body = f"Your room has been temporarily allocated. Please log in to your dashboard and fill in the payment details for Room {room.room_no}."
         mail.send(msg)
+
+        # Add a notification for the student
+        notification = Notification(
+            sender_email=admin.user.email,
+            recipient_email=applicant_email,
+            content=f"Your room has been temporarily allocated. Room Number: {room.room_no}. Please fill in the payment details.",
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(notification)
 
     db.session.commit()
     flash(f"Room {room.room_no} temporarily allocated. Status updated to Awaiting Payment from Applicant.", "success")
@@ -1140,3 +1262,43 @@ def get_payment_details(booking_id):
     if not booking or not booking.payment_details:
         return jsonify({"error": "Payment details not found"}), 404
     return jsonify(booking.payment_details)
+
+# filepath: /Users/ashutoshsingh/Documents/DEP-G17/app/admin.py
+@admin_bp.route('/admin/get_remarks/<int:booking_id>', methods=['GET'])
+def get_remarks(booking_id):
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+
+    remarks = Remark.query.filter_by(booking_id=booking_id).order_by(Remark.timestamp.desc()).all()
+    remarks_data = [
+        {
+            "added_by": remark.added_by,
+            "content": remark.content,
+            "timestamp": remark.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        for remark in remarks
+    ]
+    return jsonify(remarks_data)
+
+@admin_bp.route('/guest_room_status', methods=['GET', 'POST'])
+def guest_room_status():
+    filter_date = request.form.get('filter_date')
+    if filter_date:
+        try:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+        except ValueError:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+            return redirect(url_for('admin.guest_room_booking_status'))
+
+        guest_room_bookings = GuestRoomBooking.query.filter(
+            func.date(GuestRoomBooking.created_at) == filter_date_obj
+        ).all()
+    else:
+        guest_room_bookings = GuestRoomBooking.query.all()
+
+    return render_template(
+        'admin/guest_room_booking_status.html',
+        guest_room_bookings=guest_room_bookings,
+        filter_date=filter_date
+    )

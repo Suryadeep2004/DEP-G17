@@ -158,7 +158,7 @@ class RoomChangeRequest(db.Model):
     description = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), default="Pending", nullable=False)
     new_room_no = db.Column(db.String(20))
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp()) 
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     student = db.relationship('Student', backref=db.backref('room_change_requests', cascade='all, delete-orphan'))
@@ -211,7 +211,7 @@ class GuestRoomBooking(db.Model):
     date_departure = db.Column(db.Date, nullable=False)
     time_departure = db.Column(db.Time, nullable=False)
     accommodation_by = db.Column(db.Text, nullable=False)
-    remarks = db.Column(db.Text)
+    remarks = db.Column(db.Text, nullable=True)  # Store remarks as text
     status = db.Column(db.Text, nullable=False, default='Pending')
     hostel_no = db.Column(db.String(20), db.ForeignKey('hostel.hostel_no', ondelete='CASCADE'))
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
@@ -260,3 +260,10 @@ class Notification(db.Model):
     content = db.Column(db.Text, nullable=False)  # Message content
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # Timestamp of the notification
     is_read = db.Column(db.Boolean, default=False)  # New field to track read status
+
+class Remark(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey('guest_room_booking.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    added_by = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())

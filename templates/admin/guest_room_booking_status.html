@@ -5,7 +5,7 @@
     <h2>Guest Room Booking Status</h2>
 
     <!-- Filter Form -->
-    <form method="POST" action="{{ url_for('admin.guest_room_booking_status') }}" class="mb-4">
+    <form method="POST" action="{{ url_for('admin.guest_room_status') }}" class="mb-4">
         <div class="row g-3 align-items-center">
             <div class="col-auto">
                 <label for="filter_date" class="form-label">Filter by Date:</label>
@@ -19,20 +19,28 @@
         </div>
     </form>
 
-    {% if bookings %}
-        {% for booking in bookings %}
+    <!-- Guest Room Booking Status -->
+    {% if guest_room_bookings %}
+        {% for booking in guest_room_bookings %}
         <div class="card shadow-sm border-0 mt-4">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">Guest Room Booking (Application ID: {{ booking.id }})</h5>
             </div>
             <div class="card-body">
-                <p><strong>Applicant:</strong> {{ booking.applicant.name }}</p>
-                <p><strong>Status:</strong> {{ booking.status }}</p>
-                <p><strong>Arrival:</strong> {{ booking.date_arrival }} {{ booking.time_arrival }}</p>
-                <p><strong>Departure:</strong> {{ booking.date_departure }} {{ booking.time_departure }}</p>
-                <p><strong>Purpose of Visit:</strong> {{ booking.purpose_of_visit }}</p>
-                <p><strong>Room Category:</strong> {{ booking.room_category }}</p>
-                <p><strong>Remarks:</strong> {{ booking.remarks or 'N/A' }}</p>
+                <p><strong>Applicant:</strong> {{ booking.applicant_name }}</p>
+                <p><strong>Status:</strong> 
+                    {% if booking.status in ["Awaiting Allocation from JA (HM)", "Awaiting Payment from Applicant", "Awaiting Payment Verification from JA (HM)"] %}
+                        Awaiting final confirmation from JA (HM).
+                    {% elif booking.status == "Pending approval from Assistant Registrar (HM)" %}
+                        Awaiting final confirmation from AR (HM).
+                    {% elif booking.status == "Successful Approval" %}
+                        Approved.
+                    {% elif "Rejected" in booking.status %}
+                        {{ booking.status }}.
+                    {% else %}
+                        {{ booking.status }}.
+                    {% endif %}
+                </p>
 
                 <!-- Stepper -->
                 <div class="stepper d-flex justify-content-between align-items-center mt-4">
@@ -40,10 +48,12 @@
                     <div class="step 
                         {% if booking.status == 'Rejected by JA (HM)' %}
                             rejected
-                        {% elif 'Pending approval from JA (HM)' in booking.status %}
+                        {% elif booking.status in ['Awaiting Allocation from JA (HM)', 'Awaiting Payment from Applicant', 'Awaiting Payment Verification from JA (HM)', 'Awaiting Payment from Student'] %}
                             pending
-                        {% else %}
+                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Successful Approval'] %}
                             completed
+                        {% else %}
+                            normal
                         {% endif %}">
                         <div class="circle">1</div>
                         <p class="text-center mt-2">JA (HM)</p>
@@ -53,16 +63,12 @@
                     <div class="step 
                         {% if booking.status == 'Rejected by Assistant Registrar (HM)' %}
                             rejected
-                        {% elif 'Pending approval from Assistant Registrar (HM)' in booking.status %}
+                        {% elif booking.status == 'Pending approval from Assistant Registrar (HM)' %}
                             pending
-                        {% elif booking.status in ['Approved', 'Rejected by Chief Warden'] %}
+                        {% elif booking.status in ['Successful Approval', 'Rejected by Chief Warden'] %}
                             completed
-                        {% elif 'Rejected' in booking.status %}
-                            normal
-                        {% elif 'Pending approval from JA (HM)' in booking.status %}
-                            normal
                         {% else %}
-                            completed
+                            normal
                         {% endif %}">
                         <div class="circle">2</div>
                         <p class="text-center mt-2">AR (HM)</p>
@@ -72,12 +78,10 @@
                     <div class="step 
                         {% if booking.status == 'Rejected by Chief Warden' %}
                             rejected
-                        {% elif booking.status == 'Approved' %}
+                        {% elif booking.status in ['Successful Approval', 'Approved'] %}
                             completed
-                        {% elif 'Pending approval from Chief Warden' in booking.status %}
+                        {% elif booking.status == 'Pending approval from Chief Warden' %}
                             pending
-                        {% elif 'Rejected' in booking.status %}
-                            normal
                         {% else %}
                             normal
                         {% endif %}">
@@ -89,7 +93,7 @@
                 <!-- Rejection Note -->
                 {% if 'Rejected' in booking.status %}
                 <p class="text-danger mt-3">
-                    <strong>Note:</strong> This booking was rejected by 
+                    <strong>Note:</strong> This guest room booking was rejected by 
                     {% if booking.status == 'Rejected by JA (HM)' %}
                         JA (HM).
                     {% elif booking.status == 'Rejected by Assistant Registrar (HM)' %}
@@ -133,7 +137,6 @@
         pdfModal.show();
     }
 </script>
-
 <style>
     .stepper {
         display: flex;
