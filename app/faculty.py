@@ -883,20 +883,10 @@ def chief_warden_handle_request(request_id):
         return redirect(url_for('faculty.chief_warden_pending_requests'))
 
     if action == "approve":
-        # Assign a hostel
-        hostel_no = request.form.get('hostel_no')
-        hostel = Hostel.query.filter_by(hostel_no=hostel_no).first()
-
-        if not hostel:
-            flash("Invalid hostel selected.", "danger")
-            return redirect(url_for('faculty.chief_warden_pending_requests'))
-
-        # Update the request status and assign the hostel
-        request_entry.status = "Pending approval from Caretaker"
-        request_entry.hostel_allotted = hostel_no
+        # Update the request status to forward it to JA (HM)
+        request_entry.status = "Pending approval from JA (HM)"
         db.session.commit()
-
-        flash(f"Request approved and forwarded to the caretaker of {hostel.hostel_name}.", "success")
+        flash("Request approved and forwarded to JA (HM).", "success")
     elif action == "reject":
         request_entry.status = "Rejected by Chief Warden"
         db.session.commit()
@@ -1102,22 +1092,22 @@ def approve_request():
             db.session.commit()
 
             # Send email to HOD
-            hod = Faculty.query.filter_by(is_hod=True).first()
-            if hod:
-                msg = Message(
-                    "New Project Accommodation Request for Approval",
-                    sender="your-email@example.com",  # Replace with your email
-                    recipients=[hod.user.email]
-                )
-                msg.body = (
-                    f"Dear HOD,\n\n"
-                    f"Request ID: {request_entry.id}\n"
-                    f"OTP: {request_entry.otp}\n\n"
-                    f"To approve or reject this request, please visit the following link:\n"
-                    f"{url_for('faculty.hod_approve_request', _external=True)}\n\n"
-                    f"Thank you!"
-                )
-                mail.send(msg)
+            # hod = Faculty.query.filter_by(is_hod=True).first()
+            # if hod:
+            #     msg = Message(
+            #         "New Project Accommodation Request for Approval",
+            #         sender="your-email@example.com",  # Replace with your email
+            #         recipients=[hod.user.email]
+            #     )
+            #     msg.body = (
+            #         f"Dear HOD,\n\n"
+            #         f"Request ID: {request_entry.id}\n"
+            #         f"OTP: {request_entry.otp}\n\n"
+            #         f"To approve or reject this request, please visit the following link:\n"
+            #         f"{url_for('faculty.hod_approve_request', _external=True)}\n\n"
+            #         f"Thank you!"
+            #     )
+            #     mail.send(msg)
 
             flash("Request approved and forwarded to HOD.", "success")
         elif request.form.get("action") == "reject":

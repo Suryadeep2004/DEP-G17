@@ -1,42 +1,36 @@
-{% extends "student/base.html" %}
+{% extends "admin/base.html" %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Project Accommodation Request Status</h2>
+    <h2>Project Accommodation Requests</h2>
 
     {% if project_requests %}
-        {% set step_names = ['Faculty', 'HOD', 'AR (HM)', 'Chief Warden', 'JA (HM)'] %}
         {% for request in project_requests %}
         <div class="card shadow-sm border-0 mt-4">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Project Accommodation Request (Request ID: {{ request.id }})</h5>
+                <h5 class="mb-0">Request ID: {{ request.id }}</h5>
             </div>
             <div class="card-body">
+                <p><strong>Applicant:</strong> {{ request.applicant.name }}</p>
                 <p><strong>Status:</strong> {{ request.status }}</p>
                 <p><strong>Stay From:</strong> {{ request.stay_from }}</p>
                 <p><strong>Stay To:</strong> {{ request.stay_to }}</p>
                 <p><strong>Hostel Allotted:</strong> {{ request.hostel_allotted or 'N/A' }}</p>
-                <p><strong>Room No:</strong> {{ request.applicant.student.student_room_no or 'N/A' }}</p>
                 <p><strong>Remarks:</strong> {{ request.remarks or 'N/A' }}</p>
 
                 <!-- Stepper -->
                 <div class="stepper d-flex justify-content-between align-items-center mt-4">
-                    {% set status_index = -1 %}
-                    {% set rejected_index = -1 %}
-
-                    {% if request.status.startswith('Pending approval from ') %}
-                        {% set actor = request.status.replace('Pending approval from ', '') %}
-                        {% if actor in step_names %}
-                            {% set status_index = step_names.index(actor) %}
-                        {% endif %}
-                    {% elif request.status.startswith('Rejected by ') %}
-                        {% set actor = request.status.replace('Rejected by ', '') %}
-                        {% if actor in step_names %}
-                            {% set rejected_index = step_names.index(actor) %}
-                        {% endif %}
-                    {% elif request.status == 'Approved by JA (HM)' %}
-                        {% set status_index = step_names | length %}
-                    {% endif %}
+                    {% set STATUS_FLOW = [
+                        'Pending approval from Faculty',
+                        'Pending approval from HOD',
+                        'Pending approval from AR (HM)',
+                        'Pending approval from Chief Warden',
+                        'Pending approval from JA (HM)',
+                        'Approved by JA (HM)'
+                    ] %}
+                    {% set step_names = ['Faculty', 'HOD', 'AR (HM)', 'Chief Warden', 'JA (HM)'] %}
+                    {% set status_index = STATUS_FLOW.index(request.status) if request.status in STATUS_FLOW else -1 %}
+                    {% set rejected_index = step_names.index(request.status.replace('Rejected by ', '')) if 'Rejected by' in request.status else -1 %}
 
                     {% for step_name in step_names %}
                         {% set i = loop.index0 %}
@@ -57,12 +51,7 @@
                     {% endfor %}
                 </div>
 
-                {% if 'Rejected' in request.status %}
-                <p class="text-danger mt-3">
-                    <strong>Note:</strong> This request was {{ request.status }}.
-                </p>
-                {% endif %}
-                <button class="btn btn-primary mt-3" onclick="viewPDF('{{ request.id }}')">View Project Accommodation PDF</button>
+                <a href="{{ url_for('admin.view_project_accommodation_pdf', request_id=request.id) }}" class="btn btn-primary mt-3">View PDF</a>
             </div>
         </div>
         {% endfor %}
@@ -70,30 +59,6 @@
         <p>No project accommodation requests found.</p>
     {% endif %}
 </div>
-
-<!-- Modal -->
-<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="pdfModalLabel">Project Accommodation PDF</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <iframe id="pdfViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function viewPDF(requestId) {
-        const pdfUrl = `/student/view_project_accommodation_pdf/${requestId}`;
-        document.getElementById('pdfViewer').src = pdfUrl;
-        const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
-        pdfModal.show();
-    }
-</script>
 
 <style>
     .stepper {
@@ -110,7 +75,7 @@
         left: 0;
         right: 0;
         height: 4px;
-        background-color: #0b2c4a;
+        background-color: #e0e0e0;
         z-index: 0;
     }
     .step {
@@ -122,7 +87,7 @@
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background-color: #0b2c4a;
+        background-color: #e0e0e0;
         color: #fff;
         display: flex;
         align-items: center;

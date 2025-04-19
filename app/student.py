@@ -980,12 +980,64 @@ def submit_project_accommodation_request():
         departure_date=departure_date,
         departure_time=departure_time,
         remarks=remarks,
-        status='Pending approval from JA (HM)' , # Initial status
+        status='Pending approval from Faculty',  # Initial status
         otp=otp
     )
 
     db.session.add(request_entry)
     db.session.commit()
+
+    # Generate the PDF
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=letter)
+    can.setFont("Helvetica", 10)
+
+    # Fill the PDF with details (reuse logic from view_project_accommodation_pdf)
+    can.drawString(215, 638, f"{faculty_user.name}")
+    can.drawString(375, 638, f"{faculty_user.email.split('@')[0]}")
+    can.drawString(215, 615, f"{request_entry.applicant.name}")
+    can.drawString(215, 592, f"{request_entry.applicant.gender}")
+    can.drawString(215, 569, f"{request_entry.applicant.student.department}")
+    can.drawString(215, 535, f"{address}")
+    can.drawString(265, 500, f"{request_entry.applicant.student.student_phone}")
+    can.drawString(439, 500, f"{request_entry.applicant.email}")
+    can.drawString(215, 477, f"{faculty.faculty_phone or 'N/A'}")
+    can.drawString(327, 282, "\u2713" if category == "A" else "")
+    can.drawString(390, 282, "\u2713" if category == "B" else "")
+    can.drawString(242, 449, f"{arrival_date.strftime('%d')}")
+    can.drawString(270, 449, f"{arrival_date.strftime('%m')}")
+    can.drawString(315, 449, f"{arrival_date.strftime('%y')}")
+    can.drawString(350, 449, f"{departure_date.strftime('%d')}")
+    can.drawString(378, 449, f"{departure_date.strftime('%m')}")
+    can.drawString(423, 449, f"{departure_date.strftime('%y')}")
+    can.drawString(128, 201, f"{remarks or 'N/A'}")
+    # Render arrival date components
+    can.drawString(242-100, 248, f"{arrival_date.strftime('%d')}")  # Arrival day
+    can.drawString(270-100+10, 248, f"{arrival_date.strftime('%m')}")  # Arrival month
+    can.drawString(315-100+15, 248, f"{arrival_date.strftime('%y')}")  # Arrival year
+    can.drawString(360, 248, f"{arrival_time}")  # Arrival time
+
+    # Render departure date components
+    can.drawString(142+10, 224, f"{departure_date.strftime('%d')}")  # Departure day
+    can.drawString(270-100+20, 224, f"{departure_date.strftime('%m')}")  # Departure month
+    can.drawString(315-100+25, 224, f"{departure_date.strftime('%y')}")  # Departure year
+    can.drawString(360, 224, f"{departure_time}")  # Departure time
+    can.save()
+    packet.seek(0)
+
+    # Merge the overlay with the template
+    template_path = "static/pdf formats/Project Staff booking form.pdf"
+    reader = PdfReader(template_path)
+    writer = PdfWriter()
+    overlay = PdfReader(packet)
+    first_page = reader.pages[0]
+    first_page.merge_page(overlay.pages[0])
+    writer.add_page(first_page)
+    for page in reader.pages[1:]:
+        writer.add_page(page)
+    pdf_output = BytesIO()
+    writer.write(pdf_output)
+    pdf_output.seek(0)
 
     # Send email to the faculty
     msg = Message(
@@ -995,16 +1047,29 @@ def submit_project_accommodation_request():
     )
     msg.body = (
         f"Dear {faculty_user.name},\n\n"
-        f"A new project accommodation request has been submitted by a student.\n\n"
+        f"A new project accommodation request has been submitted by {request_entry.applicant.name}.\n\n"
+        f"Details:\n"
+        f"Address: {address}\n"
+        f"Stay From: {stay_from}\n"
+        f"Stay To: {stay_to}\n"
+        f"Category: {category}\n"
+        f"Arrival Date: {arrival_date}\n"
+        f"Departure Date: {departure_date}\n"
+        f"Remarks: {remarks or 'N/A'}\n\n"
         f"Request ID: {request_entry.id}\n"
         f"OTP: {otp}\n\n"
         f"To approve or reject this request, please visit the following link:\n"
-        f"{url_for('faculty.approve_request', _external=True)}\n\n"
+        f"{url_for('faculty.approve_request', request_id=request_entry.id, otp=otp, _external=True)}\n\n"
         f"Thank you!"
+    )
+    msg.attach(
+        "project_accommodation_request.pdf",
+        "application/pdf",
+        pdf_output.read()
     )
     mail.send(msg)
 
-    flash("Project Accommodation Request submitted successfully. An email has been sent to the faculty for approval.", "success")
+    flash("Project Accommodation Request submitted successfully. An email with details and PDF has been sent to the faculty for approval.", "success")
     return redirect(url_for('student.profile'))
 
 @student_bp.route("/student/project_accommodation_status", methods=["GET"])
@@ -1123,7 +1188,7 @@ def view_project_accommodation_pdf(request_id):
     can.drawString(130, 51, f"{hostel_name}")  # Hostel name
 
     # Signatures
-    if request.status == "Approved by Caretaker":
+    if request.status == "Approved by JA (HM)":
         # Mentor Faculty Signature
         mentor_signature = faculty.signature
         if mentor_signature:

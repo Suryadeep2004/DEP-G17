@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
-from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification, Guest, Remark
+from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification, Guest, Remark, Caretaker
 import csv
 import io
 from io import BytesIO
@@ -884,11 +884,6 @@ def view_project_accommodation_pdf(request_id):
     user_id = session['user_id']
     admin = Admin.query.filter_by(admin_id=user_id).first()
 
-    # Ensure the admin is the Assistant Registrar (HM)
-    if not admin or admin.designation != "Assistant Registrar (HM)":
-        flash("Access denied. Only Assistant Registrar (HM) can view this PDF.", "danger")
-        return redirect(url_for('admin.ar_pending_project_requests'))
-
     # Fetch the project accommodation request
     request = ProjectAccommodationRequest.query.get(request_id)
     if not request:
@@ -983,7 +978,7 @@ def view_project_accommodation_pdf(request_id):
     can.drawString(130, 51, f"{hostel_name}")  # Hostel name
 
     # Signatures
-    if request.status == "Approved by Caretaker":
+    if request.status == "Approved by JA (HM)":
         # Mentor Faculty Signature
         mentor_signature = faculty.signature
         if mentor_signature:
@@ -1301,4 +1296,200 @@ def guest_room_status():
         'admin/guest_room_booking_status.html',
         guest_room_bookings=guest_room_bookings,
         filter_date=filter_date
+    )
+
+@admin_bp.route("/admin/ja_pending_project_requests", methods=["GET", "POST"])
+def ja_pending_project_requests():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin or admin.designation != "JA (HM)":
+        flash("Access denied. Only JA (HM) can access this page.", "danger")
+        return redirect(url_for('auth.login'))
+
+    if request.method == "POST":
+        request_id = request.form.get("request_id")
+        action = request.form.get("action")
+        hostel_id = request.form.get("hostel_id")
+
+        request_entry = ProjectAccommodationRequest.query.get(request_id)
+        if not request_entry:
+            flash("Request not found.", "danger")
+            return redirect(url_for('admin.ja_pending_project_requests'))
+
+        if action == "approve":
+            # Allocate hostel
+            hostel = Hostel.query.get(hostel_id)
+            if not hostel:
+                flash("Invalid hostel selected.", "danger")
+                return redirect(url_for('admin.ja_pending_project_requests'))
+
+            request_entry.hostel_allotted = hostel.hostel_name
+            request_entry.status = "Approved by JA (HM)"
+            db.session.commit()
+
+            # Generate the PDF
+            template_path = "static/pdf formats/Project Staff booking form.pdf"
+            if not os.path.exists(template_path):
+                flash("PDF template not found.", "danger")
+                return redirect(url_for('admin.ja_pending_project_requests'))
+
+            packet = BytesIO()
+            can = canvas.Canvas(packet, pagesize=letter)
+            can.setFont("Helvetica", 10)
+
+            # Fill the PDF with details
+            faculty = Faculty.query.filter_by(faculty_id=request_entry.faculty_id).first()
+            student = request_entry.applicant.student
+            hostel_name = request_entry.hostel_allotted
+
+            # Faculty Supervisor Name and Email
+            can.drawString(215, 638, f"{faculty.user.name}")
+            faculty_email_without_domain = faculty.user.email.split('@')[0]
+            can.drawString(375, 638, f"{faculty_email_without_domain}")
+
+            # Applicant Details
+            can.drawString(215, 615, f"{request_entry.applicant.name}")
+            can.drawString(215, 592, f"{request_entry.applicant.gender}")
+            can.drawString(215, 569, f"{student.department}")
+            can.drawString(215, 535, f"{request_entry.address}")
+            can.drawString(265, 500, f"{student.student_phone}")
+            can.drawString(439, 500, f"{request_entry.applicant.email}")
+
+            # Category of Hostel
+            if request_entry.category == "A":
+                can.drawString(327, 282, "\u2713")
+            elif request_entry.category == "B":
+                can.drawString(390, 282, "\u2713")
+
+            # Date and Time of Arrival and Departure
+            can.drawString(242, 449, f"{request_entry.arrival_date.strftime('%d')}")
+            can.drawString(270, 449, f"{request_entry.arrival_date.strftime('%m')}")
+            can.drawString(315, 449, f"{request_entry.arrival_date.strftime('%y')}")
+            can.drawString(350, 449, f"{request_entry.departure_date.strftime('%d')}")
+            can.drawString(378, 449, f"{request_entry.departure_date.strftime('%m')}")
+            can.drawString(423, 449, f"{request_entry.departure_date.strftime('%y')}")
+
+            # Render arrival date components
+            can.drawString(242-100, 248, f"{request_entry.arrival_date.strftime('%d')}")  # Arrival day
+            can.drawString(270-100+10, 248, f"{request_entry.arrival_date.strftime('%m')}")  # Arrival month
+            can.drawString(315-100+15, 248, f"{request_entry.arrival_date.strftime('%y')}")  # Arrival year
+            can.drawString(360, 248, f"{request_entry.arrival_time}")  # Arrival time
+
+            # Render departure date components
+            can.drawString(142+10, 224, f"{request_entry.departure_date.strftime('%d')}")  # Departure day
+            can.drawString(270-100+20, 224, f"{request_entry.departure_date.strftime('%m')}")  # Departure month
+            can.drawString(315-100+25, 224, f"{request_entry.departure_date.strftime('%y')}")  # Departure year
+            can.drawString(360, 224, f"{request_entry.departure_time}")  # Departure time
+
+            # Remarks
+            can.drawString(128, 201, f"{request_entry.remarks or 'N/A'}")
+
+            # Hostel Name
+            can.drawString(130, 51, f"{hostel_name}")
+
+            can.save()
+            packet.seek(0)
+
+            # Merge the overlay with the template
+            reader = PdfReader(template_path)
+            writer = PdfWriter()
+            overlay = PdfReader(packet)
+
+            first_page = reader.pages[0]
+            first_page.merge_page(overlay.pages[0])
+            writer.add_page(first_page)
+
+            for page in reader.pages[1:]:
+                writer.add_page(page)
+
+            pdf_output = BytesIO()
+            writer.write(pdf_output)
+            pdf_output.seek(0)
+
+            # Send email to caretaker
+            caretaker = Caretaker.query.filter_by(hostel_no=hostel.hostel_no).first()
+            if caretaker:
+                caretaker_email = caretaker.user.email
+                msg_to_caretaker = Message(
+                    "New Project Accommodation Approval",
+                    sender="your-email@example.com",
+                    recipients=[caretaker_email]
+                )
+                msg_to_caretaker.body = (
+                    f"Dear {caretaker.user.name},\n\n"
+                    f"A new project accommodation request has been approved.\n\n"
+                    f"Details:\n"
+                    f"Student Name: {request_entry.applicant.name}\n"
+                    f"Hostel Allotted: {hostel.hostel_name}\n"
+                    f"Stay From: {request_entry.stay_from}\n"
+                    f"Stay To: {request_entry.stay_to}\n\n"
+                    f"Please find the attached PDF for more details.\n\n"
+                    f"Thank you!"
+                )
+                msg_to_caretaker.attach(
+                    "project_accommodation_request.pdf",
+                    "application/pdf",
+                    pdf_output.read()
+                )
+                mail.send(msg_to_caretaker)
+
+            flash("Request approved and notifications sent.", "success")
+        elif action == "reject":
+            request_entry.status = "Rejected by JA (HM)"
+            db.session.commit()
+            flash("Request rejected.", "danger")
+
+        return redirect(url_for('admin.ja_pending_project_requests'))
+
+    # Fetch all pending requests for JA (HM)
+    pending_requests = ProjectAccommodationRequest.query.filter_by(
+        status="Pending approval from JA (HM)"
+    ).all()
+
+    # Fetch all hostels with vacancy counts
+    hostels_with_vacancy = db.session.query(
+        Hostel.hostel_no,
+        Hostel.hostel_name,
+        db.func.sum(Room.room_occupancy - Room.current_occupancy).label("vacancies")
+    ).join(Hostel.rooms).group_by(Hostel.hostel_no, Hostel.hostel_name).all()
+
+
+    return render_template(
+        "admin/ja_pending_project_requests.html",
+        pending_requests=pending_requests,
+        hostels=hostels_with_vacancy
+    )
+
+@admin_bp.route("/admin/status_dashboard", methods=["GET"])
+def status_dashboard():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    # Fetch all guest room bookings
+    guest_room_bookings = GuestRoomBooking.query.all()
+
+    # Fetch all project accommodation requests
+    project_requests = ProjectAccommodationRequest.query.all()
+
+    return render_template(
+        "admin/status_dashboard.html",
+        guest_room_bookings=guest_room_bookings,
+        project_requests=project_requests
+    )
+
+@admin_bp.route("/admin/project_accommodation_status", methods=["GET"])
+def project_accommodation_status():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    # Fetch all project accommodation requests
+    project_requests = ProjectAccommodationRequest.query.all()
+
+    return render_template(
+        "admin/project_accommodation_status.html",
+        project_requests=project_requests
     )
