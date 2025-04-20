@@ -101,6 +101,7 @@ def submit_internship_form():
     if 'user_id' not in session or session.get('user_role') != 'student':
         return redirect(url_for('auth.login'))
 
+    user_id = session['user_id']
     name = request.form.get('name')
     gender = request.form.get('gender')
     affiliation = request.form.get('affiliation')
@@ -109,117 +110,127 @@ def submit_internship_form():
     email = request.form.get('email')
     faculty_mentor = request.form.get('faculty_mentor')
     faculty_email = request.form.get('faculty_email')
-    arrival_date = request.form.get('arrival_date')
-    departure_date = request.form.get('departure_date')
+    arrival_date = datetime.strptime(request.form.get('arrival_date'), '%Y-%m-%d').date()
+    departure_date = datetime.strptime(request.form.get('departure_date'), '%Y-%m-%d').date()
     remarks = request.form.get('remarks')
 
-    id_card = request.files['id_card']
-    official_letter = request.files['official_letter']
+    # Handle file uploads for id_card and official_letter
+    id_card_file = request.files.get('id_card')
+    official_letter_file = request.files.get('official_letter')
 
-    if id_card and official_letter:
-        # Ensure the uploads directory exists
-        uploads_dir = os.path.join(os.getcwd(), 'uploads')
-        if not os.path.exists(uploads_dir):
-            os.makedirs(uploads_dir)
+    if not id_card_file or not official_letter_file:
+        flash("Both ID Card and Official Letter are required.", "danger")
+        return redirect(url_for('student.internship_form'))
 
-        id_card_filename = secure_filename(id_card.filename)
-        official_letter_filename = secure_filename(official_letter.filename)
+    uploads_dir = os.path.join(os.getcwd(), 'static', 'uploads')
+    if not os.path.exists(uploads_dir):
+        os.makedirs(uploads_dir)
 
-        id_card.save(os.path.join(uploads_dir, id_card_filename))
-        official_letter.save(os.path.join(uploads_dir, official_letter_filename))
+    id_card_path = os.path.join(uploads_dir, secure_filename(id_card_file.filename))
+    official_letter_path = os.path.join(uploads_dir, secure_filename(official_letter_file.filename))
 
-        # Convert date strings to Python date objects
-        arrival_date = datetime.strptime(arrival_date, '%Y-%m-%d').date()
-        departure_date = datetime.strptime(departure_date, '%Y-%m-%d').date()
+    id_card_file.save(id_card_path)
+    official_letter_file.save(official_letter_path)
 
-        internship_application = InternshipApplication(
-            name=name,
-            gender=gender,
-            affiliation=affiliation,
-            address=address,
-            contact_number=contact_number,
-            email=email,
-            faculty_mentor=faculty_mentor,
-            faculty_email=faculty_email,
-            arrival_date=arrival_date,
-            departure_date=departure_date,
-            id_card=id_card_filename,
-            official_letter=official_letter_filename,
-            remarks=remarks
-        )
+    # Fetch the faculty user from the database
+    faculty_user = CustomUser.query.filter_by(email=faculty_email).first()
+    if not faculty_user:
+        flash("Faculty with the provided email does not exist.", "danger")
+        return redirect(url_for('student.internship_form'))
 
-        db.session.add(internship_application)
-        db.session.commit()
+    faculty = Faculty.query.filter_by(faculty_id=faculty_user.id).first()
+    if not faculty:
+        flash("The provided email does not belong to a faculty member.", "danger")
+        return redirect(url_for('student.internship_form'))
 
-        # Send email to student
-        student_msg = Message(
-            "Internship Application Submitted",
-            sender="johnDoe18262117@gmail.com",
-            recipients=[email]
-        )
-        student_msg.body = f"Dear {name},\n\nYour internship application has been submitted successfully.\n\nThank you!"
-        mail.send(student_msg)
+    otp = str(randint(1000000000, 9999999999))  # Generate a 10-digit OTP
 
-        # Send email to faculty
-        faculty_msg = Message(
-            "New Internship Application for Approval",
-            sender="johnDoe18262117@gmail.com",
-            recipients=[faculty_email]
-        )
-        faculty_msg.body = (
-            f"Dear {faculty_mentor},\n\n"
-            f"A new internship application has been submitted by {name}.\n\n"
-            f"Please review and approve the application.\n\n"
-            f"Thank you!"
-        )
-        mail.send(faculty_msg)
+    # Create a new InternshipApplication entry
+    application = InternshipApplication(
+        name=name,
+        gender=gender,
+        affiliation=affiliation,
+        address=address,
+        contact_number=contact_number,
+        email=email,
+        faculty_mentor=faculty_mentor,
+        faculty_email=faculty_email,
+        arrival_date=arrival_date,
+        departure_date=departure_date,
+        id_card=id_card_path,
+        official_letter=official_letter_path,
+        remarks=remarks,
+        status="Pending Faculty Approval",
+        otp=otp  # Save the OTP
+    )
+    db.session.add(application)
+    db.session.commit()
 
-        # Send email to HOD
-        hod_email = "2022csb1071+hod@iitrpr.ac.in"  # Replace with actual HOD email
-        hod_msg = Message(
-            "New Internship Application for HOD Approval",
-            sender="johnDoe18262117@gmail.com",
-            recipients=[hod_email]
-        )
-        hod_msg.body = (
-            f"Dear HOD,\n\n"
-            f"A new internship application has been submitted by {name} and approved by {faculty_mentor}.\n\n"
-            f"Please review and approve the application.\n\n"
-            f"Thank you!"
-        )
-        mail.send(hod_msg)
+    # Generate the PDF
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=letter)
+    can.setFont("Helvetica", 10)
 
-        # Send email to admin
-        admin_email = "2022csb1071+admin@iitrpr.ac.in"  # Replace with actual admin email
-        admin_msg = Message(
-            "New Internship Application Submitted",
-            sender="johnDoe18262117@gmail.com",
-            recipients=[admin_email]
-        )
-        admin_msg.body = (
-            f"Dear Admin,\n\n"
-            f"A new internship application has been submitted by {name}.\n\n"
-            f"Details:\n" 
-            f"Name: {name}\n"
-            f"Gender: {gender}\n"
-            f"Affiliation: {affiliation}\n"
-            f"Address: {address}\n"
-            f"Contact Number: {contact_number}\n"
-            f"Email: {email}\n"
-            f"Faculty Mentor: {faculty_mentor}\n"
-            f"Faculty Email: {faculty_email}\n"
-            f"Arrival Date: {arrival_date}\n"
-            f"Departure Date: {departure_date}\n"
-            f"Remarks: {remarks}\n\n"
-            f"Thank you!"
-        )
-        mail.send(admin_msg)
+    # Fill the PDF with details
+    can.drawString(215, 615, f"{application.name}")
+    can.drawString(215, 592.5, f"{application.gender}")
+    can.drawString(450, 500, f"{application.email}")
+    can.drawString(330, 500, f"{application.contact_number}")
+    can.drawString(217, 639, f"{application.faculty_mentor}")
+    can.drawString(350, 639, f"{application.faculty_email}")
+    can.drawString(215, 570, f"{application.affiliation}")
+    can.drawString(215, 535, f"{application.address}")
+    can.drawString(255, 450, f"{application.arrival_date.strftime('%d-%m-%Y')}")
+    can.drawString(355, 450, f"{application.departure_date.strftime('%d-%m-%Y')}")
+    can.drawString(145, 345, f"{application.arrival_date.strftime('%d-%m-%Y')}")  
+    can.drawString(155, 311, f"{application.departure_date.strftime('%d-%m-%Y')}")  
+    can.drawString(125, 276, f"{application.remarks or 'N/A'}")
+    can.save()
+    packet.seek(0)
 
-        flash("Internship application submitted successfully.", "success")
-    else:
-        flash("Please upload the required documents.", "danger")
+    # Merge the overlay with the template
+    template_path = "pdf_formats/summer_interns.pdf"
+    reader = PdfReader(template_path)
+    writer = PdfWriter()
+    overlay = PdfReader(packet)
+    first_page = reader.pages[0]
+    first_page.merge_page(overlay.pages[0])
+    writer.add_page(first_page)
+    for page in reader.pages[1:]:
+        writer.add_page(page)
+    pdf_output = BytesIO()
+    writer.write(pdf_output)
+    pdf_output.seek(0)
 
-    return redirect(url_for('student.internship_form'))
+    # Send email to the faculty
+    msg = Message(
+        "New Internship Application for Approval",
+        sender="your-email@example.com",  # Replace with your email
+        recipients=[faculty_email]
+    )
+    msg.body = (
+        f"Dear {faculty_user.name},\n\n"
+        f"A new internship application has been submitted by {application.name}.\n\n"
+        f"Details:\n"
+        f"Affiliation: {application.affiliation}\n"
+        f"Arrival Date: {application.arrival_date}\n"
+        f"Departure Date: {application.departure_date}\n"
+        f"Remarks: {application.remarks or 'N/A'}\n\n"
+        f"Request ID: {application.id}\n"
+        f"OTP: {otp}\n\n"
+        f"To approve or reject this application, please visit the following link:\n"
+        f"{url_for('faculty.approve_internship_application', application_id=application.id, _external=True)}\n\n"
+        f"Thank you!"
+    )
+    msg.attach(
+        "internship_application.pdf",
+        "application/pdf",
+        pdf_output.read()
+    )
+    mail.send(msg)
+
+    flash("Internship application submitted successfully. An email with details and PDF has been sent to the faculty for approval.", "success")
+    return redirect(url_for('student.profile'))
 
 @student_bp.route("/uploads/<filename>")
 def uploaded_file(filename):
@@ -673,8 +684,8 @@ def view_internship_application_pdf(application_id):
     can.drawString(215, 535, f"{application.address}")  # Address
     can.drawString(255, 450, f"{application.arrival_date.strftime('%d-%m-%Y')}")  # Arrival date
     can.drawString(355, 450, f"{application.departure_date.strftime('%d-%m-%Y')}")  # Departure date
-    can.drawString(145, 345, f"{application.arrival_date}")  # Affiliation
-    can.drawString(155, 311, f"{application.departure_date}")  # Affiliation
+    can.drawString(145, 345, f"{application.arrival_date.strftime('%d-%m-%Y')}")  
+    can.drawString(155, 311, f"{application.departure_date.strftime('%d-%m-%Y')}")  
     can.drawString(125, 276, f"{application.remarks or 'N/A'}")  # Remarks
 
     # Render signatures if available

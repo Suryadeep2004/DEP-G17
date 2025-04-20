@@ -94,42 +94,122 @@ def get_signature(admin_id):
         return admin.signature, 200, {'Content-Type': 'image/png'}
     return '', 404
 
-@admin_bp.route("/admin/pending_internship_applications", methods=["GET", "POST"])
+@admin_bp.route("/admin/pending_internship_applications", methods=["GET"])
 def pending_internship_applications():
     if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin:
+        flash("Admin not found.", "danger")
+        return redirect(url_for('auth.login'))
+
+    # Redirect based on the admin's designation
+    if admin.designation == "Assistant Registrar (HM)":
+        return redirect(url_for('admin.ar_pending_internship_applications'))
+    elif admin.designation == "JA (HM)":
+        return redirect(url_for('admin.ja_pending_internship_applications'))
+    else:
+        flash("Access denied. Only AR (HM) or JA (HM) can access this page.", "danger")
+        return redirect(url_for('auth.login'))
+    
+@admin_bp.route("/admin/ar_pending_internship_applications", methods=["GET"])
+def ar_pending_internship_applications():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin or admin.designation != "Assistant Registrar (HM)":
+        flash("Access denied. Only AR (HM) can access this page.", "danger")
         return redirect(url_for('auth.login'))
 
     search_query = request.args.get('search', '')
     sort_by = request.args.get('sort_by', 'name')
     sort_order = request.args.get('sort_order', 'asc')
 
-    query = InternshipApplication.query.filter(InternshipApplication.status == "Approved by HOD")
+    # Fetch applications pending approval from AR (HM)
+    query = InternshipApplication.query.filter(InternshipApplication.status == "Pending approval from AR (HM)")
 
+    # Apply search filter
     if search_query:
         query = query.filter(
             InternshipApplication.name.ilike(f'%{search_query}%') |
             InternshipApplication.email.ilike(f'%{search_query}%')
         )
 
+    # Apply sorting
     if sort_by == 'name':
-        if sort_order == 'asc':
-            query = query.order_by(InternshipApplication.name.asc())
-        else:
-            query = query.order_by(InternshipApplication.name.desc())
+        query = query.order_by(InternshipApplication.name.asc() if sort_order == 'asc' else InternshipApplication.name.desc())
     elif sort_by == 'email':
-        if sort_order == 'asc':
-            query = query.order_by(InternshipApplication.email.asc())
-        else:
-            query = query.order_by(InternshipApplication.email.desc())
+        query = query.order_by(InternshipApplication.email.asc() if sort_order == 'asc' else InternshipApplication.email.desc())
     elif sort_by == 'status':
-        if sort_order == 'asc':
-            query = query.order_by(InternshipApplication.status.asc())
-        else:
-            query = query.order_by(InternshipApplication.status.desc())
+        query = query.order_by(InternshipApplication.status.asc() if sort_order == 'asc' else InternshipApplication.status.desc())
 
     applications = query.all()
 
-    return render_template("admin/pending_internship_applications.html", applications=applications, search_query=search_query, sort_by=sort_by, sort_order=sort_order)
+    return render_template(
+        "admin/ar_pending_internship_applications.html",
+        applications=applications,
+        search_query=search_query,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
+@admin_bp.route("/admin/ja_pending_internship_applications", methods=["GET"])
+def ja_pending_internship_applications():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin or admin.designation != "JA (HM)":
+        flash("Access denied. Only JA (HM) can access this page.", "danger")
+        return redirect(url_for('auth.login'))
+
+    search_query = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'name')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    # Fetch applications pending approval from JA (HM)
+    query = InternshipApplication.query.filter(InternshipApplication.status == "Pending approval from JA (HM)")
+
+    # Fetch hostels with their vacancies
+    hostels = db.session.query(
+        Hostel.hostel_no,
+        Hostel.hostel_name,
+        db.func.sum(Room.room_occupancy - Room.current_occupancy).label("vacancies")
+    ).join(Hostel.rooms).group_by(Hostel.hostel_no, Hostel.hostel_name).all()
+
+    # Apply search filter
+    if search_query:
+        query = query.filter(
+            InternshipApplication.name.ilike(f'%{search_query}%') |
+            InternshipApplication.email.ilike(f'%{search_query}%')
+        )
+
+    # Apply sorting
+    if sort_by == 'name':
+        query = query.order_by(InternshipApplication.name.asc() if sort_order == 'asc' else InternshipApplication.name.desc())
+    elif sort_by == 'email':
+        query = query.order_by(InternshipApplication.email.asc() if sort_order == 'asc' else InternshipApplication.email.desc())
+    elif sort_by == 'status':
+        query = query.order_by(InternshipApplication.status.asc() if sort_order == 'asc' else InternshipApplication.status.desc())
+
+    applications = query.all()
+
+    return render_template(
+        "admin/ja_pending_internship_applications.html",
+        applications=applications,
+        hostels=hostels,
+        search_query=search_query,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
 
 @admin_bp.route("/admin/preview_application/<int:application_id>", methods=["GET"])
 def preview_application(application_id):
@@ -180,38 +260,6 @@ def preview_application(application_id):
     c.drawString(145, 345, f"{application.arrival_date}")
     c.drawString(155, 311, f"{application.departure_date}")
 
-    # Retrieve faculty and HOD signature data
-    faculty_signature = Faculty.query.get(application.faculty_signature_id)
-    hod_signature = Faculty.query.get(application.hod_signature_id)
-
-    # Draw the faculty signature if it exists
-    if faculty_signature and faculty_signature.signature:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-            tmpfile.write(faculty_signature.signature)
-            tmpfile.flush()
-
-            # Draw the faculty signature with default width and height
-            c.drawImage(tmpfile.name,
-                        440, 192 - 40,  # Adjust y-coordinate to fit the signature
-                        width=100,  # Default width
-                        height=40)  # Default height
-
-        os.unlink(tmpfile.name)  # Delete the temporary file after use
-
-    # Draw the HOD signature if it exists
-    if hod_signature and hod_signature.signature:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-            tmpfile.write(hod_signature.signature)
-            tmpfile.flush()
-
-            # Draw the HOD signature with custom width and height
-            c.drawImage(tmpfile.name,
-                        60, 57,  # Adjust coordinates for the HOD signature
-                        width=150,  # Custom width for HOD signature
-                        height=55)  # Custom height for HOD signature
-
-        os.unlink(tmpfile.name)  # Delete the temporary file after use
-
     c.save()
     overlay_buffer.seek(0)
 
@@ -248,23 +296,129 @@ def approve_internship_application(application_id):
     user_id = session['user_id']
     admin = Admin.query.filter_by(admin_id=user_id).first()
 
+    if not admin:
+        flash("Admin not found.", "danger")
+        return redirect(url_for('auth.login'))
+
     action = request.form.get('action')
+    hostel_id = request.form.get('hostel_id')  # For JA (HM) to allot a hostel
     application = InternshipApplication.query.get(application_id)
 
-    if application:
-        if application.status == "Approved by HOD":
-            if action == 'approve':
-                application.status = "Approved by Admin"
-                application.admin_signature_id = admin.admin_id  # Store admin ID
-                flash("Application approved.", "success")
-            elif action == 'reject':
-                application.status = "Disapproved by Admin"
-                flash("Application disapproved.", "danger")
-            db.session.commit()
-        else:
-            flash("Application must be approved by HOD before admin approval.", "warning")
-    else:
+    if not application:
         flash("Application not found.", "danger")
+        return redirect(url_for('admin.pending_internship_applications'))
+
+    if application.status == "Pending approval from AR (HM)":
+        if admin.designation == "Assistant Registrar (HM)":
+            if action == 'approve':
+                application.status = "Pending approval from JA (HM)"
+                application.admin_signature_id = admin.admin_id  # Store AR (HM)'s signature
+                db.session.commit()
+                flash("Application approved by AR (HM) and forwarded to JA (HM).", "success")
+            elif action == 'reject':
+                application.status = "Rejected by AR (HM)"
+                db.session.commit()
+                flash("Application rejected by AR (HM).", "danger")
+        else:
+            flash("Only AR (HM) can approve or reject this application.", "danger")
+
+    elif application.status == "Pending approval from JA (HM)":
+        if admin.designation == "JA (HM)":
+            if action == 'approve':
+                # Allocate hostel
+                hostel = Hostel.query.get(hostel_id)
+                if not hostel:
+                    flash("Invalid hostel selected.", "danger")
+                    return redirect(url_for('admin.pending_internship_applications'))
+
+                # Update application status and save the allotted hostel
+                application.status = "Approved"
+                application.hostel_allotted = hostel.hostel_name
+                application.admin_signature_id = admin.admin_id  # Store JA (HM)'s signature
+                db.session.commit()
+
+                # Notify the caretaker of the allotted hostel
+                caretaker = Caretaker.query.filter_by(hostel_no=hostel.hostel_no).first()
+                if caretaker:
+                    caretaker_email = caretaker.user.email
+                    msg = Message(
+                        "New Internship Application Approved",
+                        sender="your-email@example.com",  # Replace with your email
+                        recipients=[caretaker_email]
+                    )
+                    msg.body = (
+                        f"Dear {caretaker.user.name},\n\n"
+                        f"A new internship application has been approved and the student has been allotted to your hostel.\n\n"
+                        f"Details:\n"
+                        f"Student Name: {application.name}\n"
+                        f"Affiliation: {application.affiliation}\n"
+                        f"Arrival Date: {application.arrival_date.strftime('%d-%m-%Y')}\n"
+                        f"Departure Date: {application.departure_date.strftime('%d-%m-%Y')}\n"
+                        f"Hostel Allotted: {hostel.hostel_name}\n\n"
+                        f"Please find the attached PDF for more details.\n\n"
+                        f"Thank you!"
+                    )
+
+                    # Generate the official format PDF
+                    pdf_buffer = BytesIO()
+                    template_path = os.path.join("pdf_formats", "summer_interns.pdf")
+                    if not os.path.exists(template_path):
+                        flash("PDF template not found.", "danger")
+                        return redirect(url_for('admin.pending_internship_applications'))
+
+                    # Create a buffer for the overlay
+                    overlay_buffer = BytesIO()
+                    c = canvas.Canvas(overlay_buffer, pagesize=letter)
+                    c.setFont("Helvetica", 10)
+
+                    # Fill the PDF with application details
+                    c.drawString(215, 615, f"{application.name}")  # Applicant name
+                    c.drawString(215, 592.5, f"{application.gender}")  # Gender
+                    c.drawString(215, 570, f"{application.affiliation}")  # Affiliation
+                    c.drawString(215, 535, f"{application.address}")  # Address
+                    c.drawString(330, 500, f"{application.contact_number}")  # Contact number
+                    c.drawString(450, 500, f"{application.email}")  # Email
+                    c.drawString(217, 639, f"{application.faculty_mentor}")  # Faculty mentor
+                    c.drawString(350, 639, f"{application.faculty_email}")  # Faculty email
+                    c.drawString(255, 450, f"{application.arrival_date.strftime('%d-%m-%Y')}")  # Arrival date
+                    c.drawString(355, 450, f"{application.departure_date.strftime('%d-%m-%Y')}")  # Departure date
+                    c.drawString(125, 276, f"{application.remarks or 'N/A'}")  # Remarks
+                    c.drawString(130, 51, f"{hostel.hostel_name}")  # Hostel name
+                    c.save()
+                    overlay_buffer.seek(0)
+
+                    # Merge the overlay with the template
+                    template_reader = PdfReader(template_path)
+                    overlay_reader = PdfReader(overlay_buffer)
+                    writer = PdfWriter()
+
+                    for i, page in enumerate(template_reader.pages):
+                        if i == 0:  # Only overlay data on the first page
+                            overlay_page = overlay_reader.pages[0]
+                            page.merge_page(overlay_page)
+                        writer.add_page(page)
+
+                    # Write the final PDF to a buffer
+                    writer.write(pdf_buffer)
+                    pdf_buffer.seek(0)
+
+                    msg.attach(
+                        f"internship_application_{application.id}.pdf",
+                        "application/pdf",
+                        pdf_buffer.read()
+                    )
+                    mail.send(msg)
+
+                flash("Application approved by JA (HM) and caretaker notified.", "success")
+            elif action == 'reject':
+                # Update application status to rejected
+                application.status = "Rejected by JA (HM)"
+                db.session.commit()
+                flash("Application rejected by JA (HM).", "danger")
+        else:
+            flash("Only JA (HM) can approve or reject this application.", "danger")
+    else:
+        flash("Invalid application status for this action.", "warning")
 
     return redirect(url_for('admin.pending_internship_applications'))
 
@@ -1522,4 +1676,37 @@ def project_accommodation_status():
     return render_template(
         "admin/project_accommodation_status.html",
         project_requests=project_requests
+    )
+
+@admin_bp.route("/admin/internship_application_status", methods=["GET", "POST"])
+def internship_application_status():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    user_id = session['user_id']
+    admin = Admin.query.filter_by(admin_id=user_id).first()
+
+    if not admin:
+        flash("Admin not found.", "danger")
+        return redirect(url_for('auth.login'))
+
+    # Filter by date if provided
+    filter_date = request.form.get('filter_date')
+    query = InternshipApplication.query
+
+    if filter_date:
+        try:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+            query = query.filter(func.date(InternshipApplication.created_at) == filter_date_obj)
+        except ValueError:
+            flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+            return redirect(url_for('admin.internship_application_status'))
+
+    # Fetch all internship applications
+    internship_applications = query.order_by(InternshipApplication.created_at.desc()).all()
+
+    return render_template(
+        "admin/internship_application_status.html",
+        internship_applications=internship_applications,
+        filter_date=filter_date
     )

@@ -123,6 +123,8 @@ class InternshipApplication(db.Model):
     admin_signature_id = db.Column(db.Integer, db.ForeignKey('admin.admin_id'))  
     approval_date = db.Column(db.DateTime, default=db.func.current_timestamp())
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    otp = db.Column(db.String(10))  
+    hostel_allotted = db.Column(db.String(100))  # New column to store the allotted hostel
 
 class DummyBatch(db.Model):
     __tablename__ = 'dummy_batch'

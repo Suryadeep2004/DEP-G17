@@ -1,11 +1,11 @@
-{% extends "student/base.html" %}
+{% extends "admin/base.html" %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Status of Internship Applications</h2>
+    <h2>Internship Application Status</h2>
 
     <!-- Filter Form -->
-    <form method="POST" action="{{ url_for('student.internship_form_status') }}" class="mb-4">
+    <form method="POST" action="{{ url_for('admin.internship_application_status') }}" class="mb-4">
         <div class="row g-3 align-items-center">
             <div class="col-auto">
                 <label for="filter_date" class="form-label">Filter by Date:</label>
@@ -26,6 +26,7 @@
                 <h5 class="mb-0">Internship Application (Application ID: {{ application.id }})</h5>
             </div>
             <div class="card-body">
+                <p><strong>Student Name:</strong> {{ application.name }}</p>
                 <p><strong>Status:</strong> {{ application.status }}</p>
 
                 <!-- Stepper -->
@@ -100,7 +101,7 @@
                 <!-- Rejection Note -->
                 {% if 'Rejected' in application.status %}
                 <p class="text-danger mt-3">
-                    <strong>Note:</strong> Your internship application was rejected by 
+                    <strong>Note:</strong> This internship application was rejected by 
                     {% if application.status == 'Rejected by Faculty' %}
                         Faculty.
                     {% elif application.status == 'Rejected by HOD' %}

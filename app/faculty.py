@@ -405,32 +405,14 @@ def hod_approve_application(application_id):
 
     if application:
         if action == 'approve':
-            application.status = "Approved by HOD"
+            application.status = "Pending approval from AR (HM)"
             application.hod_signature_id = faculty.faculty_id  
             db.session.commit()
-
-            # Send email to student
-            student_msg = Message(
-                "Internship Application Approved by HOD",
-                sender="johnDoe18262117@gmail.com",
-                recipients=[application.email]
-            )
-            student_msg.body = f"Dear {application.name},\n\nYour internship application has been approved by the HOD.\n\nThank you!"
-            mail.send(student_msg)
 
             flash("Application approved by HOD.", "success")
         elif action == 'reject':
             application.status = "Rejected by HOD"
             db.session.commit()
-
-            # Send email to student
-            student_msg = Message(
-                "Internship Application Rejected by HOD",
-                sender="johnDoe18262117@gmail.com",
-                recipients=[application.email]
-            )
-            student_msg.body = f"Dear {application.name},\n\nYour internship application has been rejected by the HOD.\n\nThank you!"
-            mail.send(student_msg)
 
             flash("Application rejected by HOD.", "danger")
     else:
@@ -1098,28 +1080,7 @@ def approve_request():
 
         if request.form.get("action") == "approve":
             request_entry.status = "Pending approval from HOD"
-            # Generate a new OTP for HOD
-            request_entry.otp = str(randint(1000000000, 9999999999))
             db.session.commit()
-
-            # Send email to HOD
-            # hod = Faculty.query.filter_by(is_hod=True).first()
-            # if hod:
-            #     msg = Message(
-            #         "New Project Accommodation Request for Approval",
-            #         sender="your-email@example.com",  # Replace with your email
-            #         recipients=[hod.user.email]
-            #     )
-            #     msg.body = (
-            #         f"Dear HOD,\n\n"
-            #         f"Request ID: {request_entry.id}\n"
-            #         f"OTP: {request_entry.otp}\n\n"
-            #         f"To approve or reject this request, please visit the following link:\n"
-            #         f"{url_for('faculty.hod_approve_request', _external=True)}\n\n"
-            #         f"Thank you!"
-            #     )
-            #     mail.send(msg)
-
             flash("Request approved and forwarded to HOD.", "success")
         elif request.form.get("action") == "reject":
             request_entry.status = "Rejected by Faculty"
@@ -1129,62 +1090,6 @@ def approve_request():
         return redirect(url_for('faculty.approve_request'))
 
     return render_template("basic/approve_request.html")
-
-
-@faculty_bp.route("/faculty/hod_approve_request", methods=["GET", "POST"])
-def hod_approve_request():
-    if request.method == "POST":
-        request_id = request.form.get("request_id")
-        otp = request.form.get("otp")
-
-        # Redis keys for tracking failed attempts
-        failed_attempts_key = f"failed_attempts_request_{request_id}"
-        cooldown_key = f"cooldown_request_{request_id}"
-
-        # Check if the request is in cooldown
-        cooldown_end = redis_client.get(cooldown_key)
-        if cooldown_end:
-            cooldown_end = datetime.strptime(cooldown_end.decode(), "%Y-%m-%d %H:%M:%S")
-            if datetime.utcnow() < cooldown_end:
-                remaining_time = (cooldown_end - datetime.utcnow()).seconds
-                flash(f"Too many failed attempts. Please try again after {remaining_time} seconds.", "danger")
-                return redirect(url_for('faculty.hod_approve_request'))
-
-        # Verify the OTP
-        request_entry = ProjectAccommodationRequest.query.get(request_id)
-        if not request_entry or request_entry.otp != otp:
-            # Increment failed attempts
-            failed_attempts = redis_client.incr(failed_attempts_key)
-            redis_client.expire(failed_attempts_key, 300)  # Expire failed attempts after 5 minutes
-
-            if failed_attempts >= 3:
-                # Set cooldown period of 2 minutes
-                cooldown_end = datetime.utcnow() + timedelta(minutes=2)
-                redis_client.set(cooldown_key, cooldown_end.strftime("%Y-%m-%d %H:%M:%S"))
-                redis_client.expire(cooldown_key, 120)  # Cooldown expires after 2 minutes
-                flash("Too many failed attempts. Please try again after 2 minutes.", "danger")
-            else:
-                flash(f"Invalid OTP. You have {3 - failed_attempts} attempts remaining.", "danger")
-
-            return redirect(url_for('faculty.hod_approve_request'))
-
-        # Reset failed attempts on success
-        redis_client.delete(failed_attempts_key)
-        redis_client.delete(cooldown_key)
-
-        if request.form.get("action") == "approve":
-            request_entry.status = "Pending approval from AR (HM)"
-            db.session.commit()
-            flash("Request approved and forwarded to AR (HM).", "success")
-        elif request.form.get("action") == "reject":
-            request_entry.status = "Rejected by HOD"
-            db.session.commit()
-            flash("Request rejected by HOD.", "danger")
-
-        return redirect(url_for('faculty.hod_approve_request'))
-
-    return render_template("basic/hod_approve_request.html")
-
 
 @faculty_bp.route("/faculty/get_payment_details/<int:booking_id>", methods=["GET"])
 def faculty_get_payment_details(booking_id):
@@ -1243,3 +1148,69 @@ def add_remark(booking_id):
 
     flash("Remark added successfully.", "success")
     return redirect(url_for('faculty.guest_room_booking_approvals'))
+
+@faculty_bp.route("/faculty/approve_internship_application", methods=["GET", "POST"])
+def approve_internship_application():
+    application_id = request.args.get("application_id", type=int)
+    if not application_id:
+        flash("Application ID is required.", "danger")
+        return redirect(url_for('faculty.pending_approvals'))
+    
+    if request.method == "POST":
+        otp = request.form.get("otp")
+
+        # Redis keys for tracking failed attempts
+        failed_attempts_key = f"failed_attempts_application_{application_id}"
+        cooldown_key = f"cooldown_application_{application_id}"
+
+        # Check if the application is in cooldown
+        cooldown_end = redis_client.get(cooldown_key)
+        if cooldown_end:
+            cooldown_end = datetime.strptime(cooldown_end.decode(), "%Y-%m-%d %H:%M:%S")
+            if datetime.utcnow() < cooldown_end:
+                remaining_time = (cooldown_end - datetime.utcnow()).seconds
+                flash(f"Too many failed attempts. Please try again after {remaining_time} seconds.", "danger")
+                return redirect(url_for('faculty.approve_internship_application', application_id=application_id))
+
+        # Verify the OTP
+        application = InternshipApplication.query.get(application_id)
+        if not application or application.otp != otp:
+            # Increment failed attempts
+            failed_attempts = redis_client.incr(failed_attempts_key)
+            redis_client.expire(failed_attempts_key, 300)  # Expire failed attempts after 5 minutes
+
+            if failed_attempts >= 3:
+                # Set cooldown period of 2 minutes
+                cooldown_end = datetime.utcnow() + timedelta(minutes=2)
+                redis_client.set(cooldown_key, cooldown_end.strftime("%Y-%m-%d %H:%M:%S"))
+                redis_client.expire(cooldown_key, 120)  # Cooldown expires after 2 minutes
+                flash("Too many failed attempts. Please try again after 2 minutes.", "danger")
+            else:
+                flash(f"Invalid OTP. You have {3 - failed_attempts} attempts remaining.", "danger")
+
+            return redirect(url_for('faculty.approve_internship_application', application_id=application_id))
+
+        # Reset failed attempts on success
+        redis_client.delete(failed_attempts_key)
+        redis_client.delete(cooldown_key)
+
+        # Handle approval or rejection
+        action = request.form.get("action")
+        if action == "approve":
+            application.status = "Pending HOD Approval"
+            db.session.commit()
+            flash("Application approved and forwarded to HOD.", "success")
+        elif action == "reject":
+            application.status = "Rejected by Faculty"
+            db.session.commit()
+            flash("Application rejected.", "danger")
+
+        return redirect(url_for('faculty.approve_internship_application', application_id=application.id, _external=True))
+
+    # Fetch the application and pass it to the template
+    application = InternshipApplication.query.get(application_id)
+    if not application:
+        flash("Application not found.", "danger")
+        return redirect(url_for('faculty.approve_internship_application', application_id=application.id, _external=True))
+
+    return render_template("basic/approve_internship_application.html", application=application)

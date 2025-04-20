@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="text-primary mb-0">
+            <i class="fas fa-clipboard-list me-2"></i> Pending Internship Applications (JA)
+        </h3>
+        <form method="GET" action="{{ url_for('admin.ja_pending_internship_applications') }}" class="input-group w-50">
+            <input type="text" name="search" class="form-control" placeholder="Search by name or email" value="{{ search_query }}">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle shadow-sm">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Hostel Allocation</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for application in applications %}
+                <tr>
+                    <td>{{ application.name }}</td>
+                    <td>{{ application.email }}</td>
+
+                    <!-- Hostel Dropdown -->
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.approve_internship_application', application_id=application.id) }}" class="d-flex flex-column gap-2">
+                            {% if hostels %}
+                            <select class="form-select" name="hostel_id" required>
+                                <option value="" disabled selected>Select Hostel</option>
+                                {% for hostel in hostels %}
+                                <option value="{{ hostel.hostel_no }}">
+                                    {{ hostel.hostel_name }} ({{ hostel.vacancies }} vacancies)
+                                </option>
+                                {% endfor %}
+                            </select>
+                    </td>
+
+                    <!-- Buttons properly styled -->
+                    <td class="text-center">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm px-3">
+                                    <i class="fas fa-check me-1"></i> Approve
+                                </button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm px-3">
+                                    <i class="fas fa-times me-1"></i> Reject
+                                </button>
+                                <a href="{{ url_for('admin.preview_application', application_id=application.id) }}"
+                                   class="btn btn-info btn-sm px-3" target="_blank">
+                                    <i class="fas fa-file-pdf me-1"></i> View PDF
+                                </a>
+                            </div>
+                        </form>
+                        {% else %}
+                            <span class="text-muted">No hostels</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-lg me-2"></i>No pending applications found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
