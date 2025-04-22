@@ -41,6 +41,12 @@
             <div class="text-center mt-2">
                 <button class="btn btn-sm btn-primary" id="markAllRead">Mark All as Read</button>
             </div>
+            {% for notification in notifications %}
+                <div class="dropdown-item">
+                    <p>{{ notification.content|safe }}</p> <!-- Use |safe to render HTML -->
+                    <small class="text-muted">{{ notification.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                </div>
+            {% endfor %}
             <hr>
             {% if notifications|length > 0 %}
                 <ul class="list-unstyled px-3">
@@ -58,9 +64,7 @@
         </div>
     </div>
 </div>
-
 <style>
-/* Notification container fixed at the top-right corner */
 .notification-container {
     position: fixed;
     top: 20px;

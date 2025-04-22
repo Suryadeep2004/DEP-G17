@@ -1,0 +1,25 @@
+{% extends "student/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">Payment Details</h2>
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-body">
+            <h5>1. NEFT/RTGS</h5>
+            <p><strong>A/C Name:</strong> The Director, IIT Ropar Hostel Account</p>
+            <p><strong>A/C No.:</strong> 30836912866</p>
+            <p><strong>Bank & Branch:</strong> State Bank of India, IIT Ropar Branch</p>
+            <p><strong>IFSC Code:</strong> SBIN0013181</p>
+            <p><em>Note:</em> Mention your Roll No. & Name in UTR/remarks.</p>
+            <hr>
+            <h5>2. Demand Draft</h5>
+            <p><strong>In favor of:</strong> The Director, IIT Ropar Hostel Account</p>
+            <p><strong>Payable at:</strong> IIT Ropar</p>
+            <p>Write Roll No. & Name on the back.</p>
+            <hr>
+            <p class="text-danger"><strong>Missed deadline may cancel your allotment.</strong></p>
+            <p class="text-muted">— Hostel Management, IIT Ropar</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

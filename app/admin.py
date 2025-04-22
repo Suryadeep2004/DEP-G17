@@ -1635,35 +1635,17 @@ def allocate_room():
 
         # Add a notification for the student
         notification = Notification(
-            sender_email="johnDoe18262117@gmail.com",
-            recipient_email=applicant_email,
-            content=f"""
-Your Hostel Guest Room is Ready! 
-You’ve been allotted Room {room.room_no} in {hostel.hostel_name} Hostel from {datetime.now(timezone.utc).strftime('%Y-%m-%d')}. Pay {booking.calculate_amount()} by {due_date} to confirm. 
-Upload receipt via "Fill payment details" on your dashboard.
+    sender_email="johnDoe18262117@gmail.com",
+    recipient_email=applicant_email,
+    content=f"""
+    Your Hostel Guest Room is Ready! 
+    You’ve been allotted Room {room.room_no} in {hostel.hostel_name} Hostel from {datetime.now(timezone.utc).strftime('%Y-%m-%d')}. Pay ₹{booking.calculate_amount()} by {due_date} to confirm. 
+    Upload receipt via "Fill payment details" on your dashboard.
 
-1.NEFT/RTGS 
-
-A/C Name: The Director, IIT Ropar Hostel Account
-A/C No.: 30836912866
-Bank: SBI, IIT Ropar Branch
-IFSC: SBIN0013181
-
-Note: Mention your Roll No. & Name in UTR/remarks.
-
-2 . Demand Draft 
-
-In favor of: The Director, IIT Ropar Hostel Account
-Payable at : IIT Ropar
-
-Write Roll No. & Name on the back. 
-
-(Missed deadline may cancel your allotment.)
-
-— Hostel Management, IIT Ropar
-""",
-            timestamp=datetime.now(timezone.utc)
-        )
+    <button class="btn btn-primary mt-2" onclick="window.location.href='/student/payment_details/{booking.id}'">How To Pay</button>
+    """,
+        timestamp=datetime.now(timezone.utc)
+    )
         db.session.add(notification)
 
     db.session.commit()

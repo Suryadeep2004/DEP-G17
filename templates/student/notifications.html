@@ -6,7 +6,7 @@
     <ul class="list-group">
         {% for notification in notifications %}
         <li class="list-group-item">
-            <p>{{ notification.content }}</p>
+            <p>{{ notification.content|safe }}</p>
             <small class="text-muted">{{ notification.timestamp }}</small>
         </li>
         {% endfor %}

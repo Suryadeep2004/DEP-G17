@@ -1342,3 +1342,13 @@ def inject_guest_room_booking():
         guest_room_booking = GuestRoomBooking.query.filter_by(applicant_id=user_id, status="Awaiting Payment from Applicant").first()
         return {'guest_room_booking': guest_room_booking}
     return {'guest_room_booking': None}
+
+
+@student_bp.route("/student/payment_details/<int:booking_id>", methods=["GET"])
+def payment_details(booking_id):
+    booking = GuestRoomBooking.query.get(booking_id)
+    if not booking or booking.applicant_id != session.get('user_id'):
+        flash("Invalid booking or access denied.", "danger")
+        return redirect(url_for('student.status'))
+
+    return render_template("student/payment_details.html", booking=booking)
