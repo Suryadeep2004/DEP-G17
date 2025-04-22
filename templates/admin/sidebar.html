@@ -1,7 +1,8 @@
 <style>
     .sidebar {
         width: 260px;
-        background-color: #5a4e1e; /* Dark gold/brown */
+        background-color: #5a4e1e;
+        /* Dark gold/brown */
         color: #fdfdfd;
         position: fixed;
         height: 100%;
@@ -76,7 +77,8 @@
     }
 
     .sidebar a:hover {
-        background-color: #c9a33b; /* Gold hover */
+        background-color: #c9a33b;
+        /* Gold hover */
         color: #3f3312;
         transform: translateX(3px);
     }
@@ -129,6 +131,12 @@
             <span>Status</span>
         </a>
         </li>
+        {% if session.get('designation') == 'JA (HM)'%}
+        <a href="{{ url_for('admin.hostel_approvals_sheet') }}">
+            <i class="bi bi-file-earmark-excel"></i>
+            <span>Hostel Approvals Sheet</span>
+        </a>
+        {% endif %}
         <a href="/logout">
             <i class="bi bi-box-arrow-right"></i>
             <span>Logout</span>

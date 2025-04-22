@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file
+from flask import Blueprint, render_template, session, redirect, url_for, request, flash, send_file, Response
 from app.models import CustomUser, Admin, InternshipApplication, Student, Faculty, db, GuestRoomBooking, Warden, ProjectAccommodationRequest, Hostel, Notification, Guest, Remark, Caretaker
 import csv
 import io
 from io import BytesIO
+from io import StringIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import tempfile
@@ -22,6 +23,8 @@ from app.models import Room, Hostel
 from flask import jsonify
 from flask_mail import Message
 from app import mail
+from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import scoped_session
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -839,6 +842,156 @@ def handle_guest_room_booking(booking_id):
     return redirect(url_for('admin.guest_room_booking_approvals'))
 
 
+# @admin_bp.route("/admin/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
+# def admin_view_guest_room_booking_pdf(booking_id):
+#     if 'user_id' not in session or session.get('user_role') != 'admin':
+#         return redirect(url_for('auth.login'))
+
+#     booking = GuestRoomBooking.query.get(booking_id) 
+#     if not booking:
+#         flash("Guest room booking application not found.", "danger")
+#         return redirect(url_for('admin.guest_room_booking_approvals'))
+
+#     # Retrieve the student's details from the Student model
+#     student = Student.query.filter_by(student_id=booking.applicant_id).first()
+#     if not student:
+#         guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
+#         if not guest:
+#             flash("Applicant details not found.", "danger")
+#             return redirect(url_for('admin.guest_room_booking_approvals'))
+
+#     template_path = "static/pdf formats/Guest room booking form.pdf"
+
+#     packet = BytesIO()
+#     can = canvas.Canvas(packet, pagesize=letter)
+#     can.setFont("Helvetica", 10)
+
+#     if student:
+#         applicant_name = booking.applicant.name
+#         applicant_phone = student.student_phone or 'N/A'
+#         applicant_entry = student.student_roll or 'N/A'
+#         applicant_department_or_address = student.department or 'N/A'
+#         applicant_role = "Student"  # Indicate the role as "Student"
+#     elif guest:
+#         applicant_name = booking.applicant.name
+#         applicant_phone = guest.phone or 'N/A'
+#         applicant_entry = "N/A"  # Guests don't have a roll number
+#         applicant_role = "Guest"
+#         applicant_department_or_address = guest.address or 'N/A'
+
+#     # Extract email without domain
+#     email_without_domain = booking.applicant.email.split('@')[0]
+
+#     # Fill data on the PDF
+#     can.drawString(50, 605, f"{applicant_name}")  # Applicant name
+#     can.drawString(460, 605, f"{applicant_phone}")  # Applicant phone
+#     can.drawString(350, 605, f"{applicant_entry}")  # Applicant entry number or N/A
+#     can.drawString(160, 605, f"{applicant_role}")  # Role: Student or Guest
+#     can.drawString(265, 605, f"{applicant_department_or_address}")  # Department or Address
+#     can.drawString(265, 582, f"{email_without_domain}")  #
+
+#     # --- Fill Data on PDF ---
+#     can.drawString(250, 560, f"{booking.guests_male}")
+#     can.drawString(300, 560, f"{booking.guests_female}")
+#     can.drawString(450, 560, f"{booking.total_guests}")
+#     can.drawString(235, 536, f"{booking.guest_names}")
+#     can.drawString(235, 512, f"{booking.relation_with_applicant}")
+#     can.drawString(235, 479, f"{booking.guest_address}")
+#     can.drawString(317, 443, f"{booking.guest_contact}")
+#     can.drawString(430, 443, f"{booking.guest_email or 'N/A'}")
+#     can.drawString(130, 420, f"{booking.purpose_of_visit}")
+
+#     # Room category
+#     if booking.room_category == "A":
+#         can.drawString(327, 407, "\u2713")
+#     else:
+#         can.drawString(390, 407, "\u2713")
+
+#     # Accommodation by
+#     if booking.accommodation_by == "Guest":
+#         can.drawString(340, 257, "\u2713")
+#     else:
+#         can.drawString(420, 257, "\u2713")
+
+#     # Render date and time separately
+#     can.drawString(140, 350, f"{booking.date_arrival.strftime('%d')}")
+#     can.drawString(180, 350, f"{booking.date_arrival.strftime('%m')}")
+#     can.drawString(230, 350, f"{int(booking.date_arrival.strftime('%Y')) % 100}")
+#     can.drawString(360, 350, f"{booking.time_arrival.strftime('%H')}:{booking.time_arrival.strftime('%M')}")  # 24-hour format
+
+#     can.drawString(140 + 10, 315, f"{booking.date_departure.strftime('%d')}")
+#     can.drawString(180 + 10, 315, f"{booking.date_departure.strftime('%m')}")
+#     can.drawString(230 + 10, 315, f"{int(booking.date_departure.strftime('%Y')) % 100}")
+#     can.drawString(360, 315, f"{booking.time_departure.strftime('%H')}:{booking.time_departure.strftime('%M')}")  # 24-hour format
+
+#     can.drawString(125, 220, f"{booking.remarks or 'N/A'}")
+
+#     # Render hostel details if approved by Chief Warden
+#     if booking.status == "Successful Approval" and booking.hostel:
+#         can.drawString(300, 128, f"{booking.hostel.hostel_name}")
+
+#     # Render signatures based on approval status
+#     y_position = 150
+#     signature_section_height = 110
+#     can.setFont("Helvetica-Bold", 12)
+
+#     if booking.status in ["Approved by JA (HM)", "Approved by Assistant Registrar (HM)", "Successful Approval"]:
+#         ja_hm = Admin.query.filter_by(designation="JA (HM)").first()
+#         if ja_hm and ja_hm.signature:
+#             can.drawImage(ImageReader(BytesIO(ja_hm.signature)), 470, y_position - 10, width=50, height=30)
+
+#     if booking.status in ["Approved by Assistant Registrar (HM)", "Successful Approval"]:
+#         ar_hm = Admin.query.filter_by(designation="Assistant Registrar (HM)").first()
+#         if ar_hm and ar_hm.signature:
+#             can.drawImage(ImageReader(BytesIO(ar_hm.signature)), 100, y_position - 10 - 70, width=50, height=30)
+
+#     if booking.status == "Successful Approval":
+#         chief_warden_entry = Warden.query.filter_by(is_chief=1).first()
+#         if chief_warden_entry:
+#             chief_warden = Faculty.query.filter_by(faculty_id=chief_warden_entry.faculty_id).first()
+#             if chief_warden and chief_warden.signature:
+#                 can.drawImage(ImageReader(BytesIO(chief_warden.signature)), 470, y_position - 10-70, width=50, height=30)
+
+#     # Add payment details if status is "Awaiting Allocation from JA (HM)"
+#     if booking.status == "Awaiting Allocation from JA (HM)" and session.get('designation') == "JA (HM)":
+#         can.showPage()  # Move to the second page
+#         can.setFont("Helvetica-Bold", 12)
+#         can.drawString(50, 750, "Payment Details")
+#         can.setFont("Helvetica", 10)
+#         payment_details = booking.payment_details or {}
+#         can.drawString(50, 730, f"Amount: {payment_details.get('amount', 'N/A')}")
+#         can.drawString(50, 710, f"Transaction Date: {payment_details.get('transaction_date', 'N/A')}")
+#         can.drawString(50, 690, f"Payment Method: {payment_details.get('method', 'N/A')}")
+#         can.drawString(50, 670, f"Remarks: {payment_details.get('remarks', 'N/A')}")
+
+#     can.save()
+#     packet.seek(0)
+
+#     reader = PdfReader(template_path)
+#     writer = PdfWriter()
+#     overlay = PdfReader(packet)
+
+#     # Merge the overlay only with the first page of the template
+#     if len(reader.pages) > 0:
+#         first_page = reader.pages[0]
+#         first_page.merge_page(overlay.pages[0])
+#         writer.add_page(first_page)
+
+#     # Add the remaining pages of the template without modification
+#     for page in reader.pages[1:]:
+#         writer.add_page(page)
+
+#     output = BytesIO()
+#     writer.write(output)
+#     output.seek(0)
+
+#     return send_file(
+#         output,
+#         mimetype="application/pdf",
+#         download_name="guest_room_booking_filled.pdf",
+#         as_attachment=False  # This ensures the PDF is displayed inline
+#     )
+    
 @admin_bp.route("/admin/view_guest_room_booking_pdf/<int:booking_id>", methods=["GET"])
 def admin_view_guest_room_booking_pdf(booking_id):
     if 'user_id' not in session or session.get('user_role') != 'admin':
@@ -860,7 +1013,9 @@ def admin_view_guest_room_booking_pdf(booking_id):
     template_path = "static/pdf formats/Guest room booking form.pdf"
 
     packet = BytesIO()
+    second_page_buffer = BytesIO()
     can = canvas.Canvas(packet, pagesize=letter)
+    can2 = canvas.Canvas(second_page_buffer, pagesize=letter)
     can.setFont("Helvetica", 10)
 
     if student:
@@ -949,23 +1104,88 @@ def admin_view_guest_room_booking_pdf(booking_id):
             chief_warden = Faculty.query.filter_by(faculty_id=chief_warden_entry.faculty_id).first()
             if chief_warden and chief_warden.signature:
                 can.drawImage(ImageReader(BytesIO(chief_warden.signature)), 470, y_position - 10-70, width=50, height=30)
-                
+
+    can2.setFont("Helvetica-Bold", 12)
+    can2.drawString(265, 417, "Payment Details")
+    text_width = can2.stringWidth("Payment Details", "Helvetica-Bold", 12)
+    can2.line(265, 414, 265 + text_width, 414)  
+
+    # Add payment details if status is "Awaiting Allocation from JA (HM)"
+    if booking.status == "Awaiting Payment Verification from JA (HM)" and session.get('designation') == "JA (HM)":
+        can2.setFont("Helvetica-Bold", 12)
+        # can2.drawString(265, 417, "Payment Details")
+
+        # text_width = can2.stringWidth("Payment Details", "Helvetica-Bold", 12)
+
+        # can2.line(265, 414, 265 + text_width, 414)  
+        can2.setFont("Helvetica", 10)
+
+        payment_details = booking.payment_details or {}
+
+        # Initial y_position decreased by 50
+        y_position = 390  # Previously 730
+        line_spacing = 30
+
+        # Draw each payment detail
+        details_to_draw = [
+            ("Email", payment_details.get('email', 'N/A')),
+            ("Name", payment_details.get('name', 'N/A')),
+            ("Designation", payment_details.get('designation', 'N/A')),
+            ("Mobile", payment_details.get('mobile', 'N/A')),
+            ("Hostel Name", payment_details.get('hostel_name', 'N/A')),
+            ("Amount Deposited", payment_details.get('amount_deposited', 'N/A')),
+            ("Room Rent Month", payment_details.get('room_rent_month', 'N/A')),
+            ("Year", payment_details.get('year', 'N/A')),
+            ("Date of Deposit", payment_details.get('date_of_deposit', 'N/A')),
+            ("UTR Number", payment_details.get('utr_number', 'N/A')),
+            ("Component of Amount", payment_details.get('component_of_amount', 'N/A')),
+            ("Declaration", payment_details.get('declaration', 'N/A')),
+            ("Payment Proof", payment_details.get('payment_proof', 'N/A')),
+            ("Remarks", payment_details.get('remarks', 'N/A')),
+        ]
+
+        for index, (label, value) in enumerate(details_to_draw, 1):
+            # can2.rect(50, y_position - 10, 400, 20, stroke=1, fill=0)  # Debug rectangle
+            can2.drawString(50, y_position, f"{index}. {label}: {value}")
+            y_position -= line_spacing
+
+            # Check if the y_position is too low, and move to the next page if needed
+            if y_position < 50:
+                can2.showPage()
+                can2.setFont("Helvetica-Bold", 12)
+                can2.drawString(50, 750, "Payment Details (Continued)")
+                can2.setFont("Helvetica", 10)
+                y_position = 730
+                # Reset the counter for the next page - remove this line if you want continuous numbering
+                # index = 0
+
+
+    # Replace the current PDF writing section with this code
+    can2.save()
     can.save()
     packet.seek(0)
+    second_page_buffer.seek(0)
 
     reader = PdfReader(template_path)
     writer = PdfWriter()
     overlay = PdfReader(packet)
+    overlay2 = PdfReader(second_page_buffer)
 
-    # Merge the overlay only with the first page of the template
+    # Merge the first overlay with the first page of the template
     if len(reader.pages) > 0:
         first_page = reader.pages[0]
         first_page.merge_page(overlay.pages[0])
         writer.add_page(first_page)
 
-    # Add the remaining pages of the template without modification
-    for page in reader.pages[1:]:
-        writer.add_page(page)
+    # Merge the second overlay with the second page of the template
+    if len(reader.pages) > 1:
+        second_page = reader.pages[1]
+        second_page.merge_page(overlay2.pages[0])
+        writer.add_page(second_page)
+
+    # Add any remaining pages of the template without modification
+    for i in range(2, len(reader.pages)):
+        writer.add_page(reader.pages[i])
 
     output = BytesIO()
     writer.write(output)
@@ -1293,7 +1513,7 @@ def allocate_room():
     room_id = request.form.get("room_id")
     remark = request.form.get("remark")
 
-    # Fetch the booking and room
+      # Disable autoflush temporarily
     booking = GuestRoomBooking.query.get(booking_id)
     room = Room.query.get(room_id)
 
@@ -1303,6 +1523,12 @@ def allocate_room():
 
     if not room:
         flash("Room not found.", "danger")
+        return redirect(url_for("admin.guest_room_booking_approvals"))
+
+    # Fetch the hostel associated with the room
+    hostel = Hostel.query.filter_by(hostel_no=room.hostel_no).first()
+    if not hostel:
+        flash("Hostel not found for the selected room.", "danger")
         return redirect(url_for("admin.guest_room_booking_approvals"))
 
     # Get the logged-in admin
@@ -1315,49 +1541,133 @@ def allocate_room():
 
     # Temporarily allocate the room and update the status
     booking.room_no = room.room_no
+    booking.hostel_no = hostel.hostel_no  # Set the hostel
     booking.status = "Awaiting Payment from Applicant"
     booking.remarks = remark  # Save the remark
 
-    # Notify the applicant (student or guest) to fill payment details
+
     # Notify the applicant (student or guest) to fill payment details
     applicant_email = None
     student = Student.query.filter_by(student_id=booking.applicant_id).first()
     if student and student.user.email:
         applicant_email = student.user.email
+        student_name = student.user.name
     else:
         guest = Guest.query.filter_by(guest_id=booking.applicant_id).first()
         if guest and guest.user.email:
             applicant_email = guest.user.email
+            student_name = guest.user.name
 
     if applicant_email:
-        notification = Notification(
-            sender_email=admin.user.email,
-            recipient_email=applicant_email,
-            content="Your room has been temporarily allocated. Please fill in the payment details.",
-            timestamp=datetime.utcnow()
-        )
-        db.session.add(notification)
+        # Calculate the due date (7 days from today)
+        due_date = (datetime.now(timezone.utc) + timedelta(days=7)).strftime('%Y-%m-%d')
 
+        # Prepare the email content
+        # Prepare the email content
+        email_body = f"""
+<html>
+    <body style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;">
+        <p>Dear {student_name},</p>
+
+        <p>
+        We are pleased to inform you that you have been allocated a room 
+        (Room No. <strong>{room.room_no}</strong>) in the IIT Ropar hostel- 
+        <strong>{hostel.hostel_name}</strong> w.e.f. 
+        <strong>{datetime.now(timezone.utc).strftime('%Y-%m-%d')}</strong>. 
+        To confirm your booking, please deposit the requisite hostel fee of 
+        <strong>₹{booking.calculate_amount()}</strong> (on or before 
+        <strong>{due_date}</strong>) by any one of the following methods:
+        </p>
+
+        <h3>NEFT/RTGS</h3>
+        <p style="color: black;">
+        Account Name: <strong>The Director, IIT Ropar Hostel Account</strong><br>
+        Account No.: <strong>30836912866</strong><br>
+        Bank & Branch: <strong>State Bank of India, IIT Ropar Branch</strong><br>
+        IFSC Code: <strong>SBIN0013181</strong>
+        </p>
+
+        <p>
+        <em>Note:</em> When making the transfer, kindly include your Roll Number 
+        and Name in the remarks/UTR details.
+        </p>
+
+        <h3>Demand Draft</h3>
+        <p>
+        Drawn in favor of <strong>“The Director, IIT Ropar Hostel Account”</strong><br>
+        Payable at IIT Ropar
+        </p>
+
+        <p>
+        On the reverse side of the draft, please write your Roll Number and Name.
+        </p>
+
+        <p>
+        Once the payment is made, upload a scanned copy/photo of your fee receipt 
+        or transaction slip by <strong>{due_date}</strong> through the 
+        <strong style="color: red;">"Fill payment details"</strong> option in the sidebar of your dashboard.
+        </p>
+
+        <strong style="color: red;">
+        Failure to submit proof of payment by the due date will be taken to mean 
+        that you have not paid, and your room allocation may be cancelled.
+        </strong>
+
+        <p>Thanks & Regards,</p>
+
+        <p>
+        <strong>छात्रावास प्रबंधन अनुभाग / Hostel Management Section</strong><br>
+        भारतीय प्रौद्योगिकी संस्थान रोपड़ / Indian Institute of Technology Ropar
+        </p>
+
+        <p>Phone: +91-1881-231177</p>
+    </body>
+</html>
+"""
         # Send email notification
         msg = Message(
-            f"Room Allocation - Payment Details Required {room.room_no}",
-            sender=admin.user.email,
+            "Room Allocation - Payment Details Required",
+            sender="johnDoe18262117@gmail.com",  # Replace with the sender's email
             recipients=[applicant_email]
         )
-        msg.body = f"Your room has been temporarily allocated. Please log in to your dashboard and fill in the payment details for Room {room.room_no}."
+        msg.html = email_body
         mail.send(msg)
 
         # Add a notification for the student
         notification = Notification(
-            sender_email=admin.user.email,
+            sender_email="johnDoe18262117@gmail.com",
             recipient_email=applicant_email,
-            content=f"Your room has been temporarily allocated. Room Number: {room.room_no}. Please fill in the payment details.",
-            timestamp=datetime.utcnow()
+            content=f"""
+Your Hostel Guest Room is Ready! 
+You’ve been allotted Room {room.room_no} in {hostel.hostel_name} Hostel from {datetime.now(timezone.utc).strftime('%Y-%m-%d')}. Pay {booking.calculate_amount()} by {due_date} to confirm. 
+Upload receipt via "Fill payment details" on your dashboard.
+
+1.NEFT/RTGS 
+
+A/C Name: The Director, IIT Ropar Hostel Account
+A/C No.: 30836912866
+Bank: SBI, IIT Ropar Branch
+IFSC: SBIN0013181
+
+Note: Mention your Roll No. & Name in UTR/remarks.
+
+2 . Demand Draft 
+
+In favor of: The Director, IIT Ropar Hostel Account
+Payable at : IIT Ropar
+
+Write Roll No. & Name on the back. 
+
+(Missed deadline may cancel your allotment.)
+
+— Hostel Management, IIT Ropar
+""",
+            timestamp=datetime.now(timezone.utc)
         )
         db.session.add(notification)
 
     db.session.commit()
-    flash(f"Room {room.room_no} temporarily allocated. Status updated to Awaiting Payment from Applicant.", "success")
+    flash(f"Room {room.room_no} in {hostel.hostel_name} temporarily allocated. Status updated to Awaiting Payment from Applicant.", "success")
     return redirect(url_for("admin.guest_room_booking_approvals"))
 
 @admin_bp.route("/admin/send_message", methods=["POST"])
@@ -1709,4 +2019,47 @@ def internship_application_status():
         "admin/internship_application_status.html",
         internship_applications=internship_applications,
         filter_date=filter_date
+    )
+
+@admin_bp.route("/admin/hostel_approvals_sheet", methods=["GET"])
+def hostel_approvals_sheet():
+    if 'user_id' not in session or session.get('designation') != 'JA (HM)':
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for('admin.approvals_dashboard'))
+
+    # Fetch approved guest room bookings
+    approved_bookings = GuestRoomBooking.query.filter_by(status="Successful Approval").all()
+
+    # Prepare data for the CSV
+    csv_data = []
+    csv_data.append([
+        "S.No", "Date of Booking", "Booked By", "Guest Names", 
+        "Date of Arrival", "Date of Departure", "Hostel Allotted", 
+        "Amount Collected", "Dated", "Remarks"
+    ])
+    for idx, booking in enumerate(approved_bookings, start=1):
+        csv_data.append([
+            idx,
+            booking.created_at.strftime('%Y-%m-%d') if booking.created_at else "N/A",
+            booking.applicant.name,
+            booking.guest_names,
+            booking.date_arrival.strftime('%Y-%m-%d') if booking.date_arrival else "N/A",
+            booking.date_departure.strftime('%Y-%m-%d') if booking.date_departure else "N/A",
+            booking.hostel.hostel_name if booking.hostel_no else "N/A",
+            str(booking.payment_details.get('amount_deposited')) if booking.payment_details else "N/A",
+            booking.payment_details.get('transaction_date') if booking.payment_details else "N/A",
+            booking.remarks or "N/A"
+        ])
+
+    # Create a CSV file in memory
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerows(csv_data)
+    output.seek(0)
+
+    # Send the CSV file as a response
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=hostel_approvals_sheet.csv"}
     )

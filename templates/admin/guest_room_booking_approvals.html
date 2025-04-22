@@ -6,21 +6,30 @@
         <h2>Guest Room Booking Approvals</h2>
         {% if admin.designation == "JA (HM)" %}
         <div class="dropdown">
-            <button class="btn btn-primary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <button class="btn btn-primary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown"
+                aria-expanded="false">
                 Filter by
             </button>
             <ul class="dropdown-menu" aria-labelledby="sortDropdown">
-                <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Allocation from JA (HM)') }}">Awaiting Allocation from JA (HM)</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Payment from Applicant') }}">Awaiting Payment from Applicant</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Payment Verification from JA (HM)') }}">Awaiting Payment Verification from JA (HM)</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('admin.guest_room_booking_approvals', sort='default') }}">Default</a></li>
+                <li><a class="dropdown-item"
+                        href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Allocation from JA (HM)') }}">Awaiting
+                        Allocation from JA (HM)</a></li>
+                <li><a class="dropdown-item"
+                        href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Payment from Applicant') }}">Awaiting
+                        Payment from Applicant</a></li>
+                <li><a class="dropdown-item"
+                        href="{{ url_for('admin.guest_room_booking_approvals', sort='Awaiting Payment Verification from JA (HM)') }}">Awaiting
+                        Payment Verification from JA (HM)</a></li>
+                <li><a class="dropdown-item"
+                        href="{{ url_for('admin.guest_room_booking_approvals', sort='default') }}">Default</a></li>
                 <li><a class="dropdown-item" href="#" onclick="openSortInputModal('name')">Name</a></li>
                 <li><a class="dropdown-item" href="#" onclick="openSortInputModal('arrival_date')">Arrival Date</a></li>
-                <li><a class="dropdown-item" href="#" onclick="openSortInputModal('departure_date')">Departure Date</a></li>
+                <li><a class="dropdown-item" href="#" onclick="openSortInputModal('departure_date')">Departure Date</a>
+                </li>
                 <li><a class="dropdown-item" href="#" onclick="openSortInputModal('email')">Email</a></li>
             </ul>
         </div>
-{% endif %}
+        {% endif %}
     </div>
     <div class="table-responsive">
         <table class="table table-hover table-striped align-middle text-center">
@@ -46,53 +55,61 @@
                     <td>{{ booking.date_departure }} {{ booking.time_departure }}</td>
                     <td>
                         {% if booking.status == "Awaiting Allocation from JA (HM)" %}
-                            <span class="badge bg-warning text-dark">Awaiting Allocation from JA (HM)</span>
+                        <span class="badge bg-warning text-dark">Awaiting Allocation from JA (HM)</span>
                         {% elif booking.status == "Awaiting Payment from Applicant" %}
-                            <span class="badge bg-info text-white">Awaiting Payment from Applicant</span>
+                        <span class="badge bg-info text-white">Awaiting Payment from Applicant</span>
                         {% elif booking.status == "Awaiting Payment Verification from JA (HM)" %}
-                            <span class="badge bg-primary text-white">Awaiting Payment Verification from JA (HM)</span>
+                        <span class="badge bg-primary text-white">Awaiting Payment Verification from JA (HM)</span>
                         {% elif booking.status == "Pending approval from Assistant Registrar (HM)" %}
-                            <span class="badge bg-secondary text-white">Pending approval from AR (HM)</span>
+                        <span class="badge bg-secondary text-white">Pending approval from AR (HM)</span>
                         {% elif booking.status == "Pending approval from Chief Warden" %}
-                            <span class="badge bg-secondary text-white">Pending approval from Chief Warden</span>
+                        <span class="badge bg-secondary text-white">Pending approval from Chief Warden</span>
                         {% elif booking.status == "Successful Approval" %}
-                            <span class="badge bg-success text-white">Successful Approval</span>
+                        <span class="badge bg-success text-white">Successful Approval</span>
                         {% else %}
-                            <span class="badge bg-secondary text-white">{{ booking.status }}</span>
+                        <span class="badge bg-secondary text-white">{{ booking.status }}</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if booking.remarks %}
-                            <!-- View Remarks Button -->
-                            <button class="btn btn-info btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
-                            <button class="btn btn-primary btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
+                        <!-- View Remarks Button -->
+                        <button class="btn btn-info btn-sm mb-2"
+                            onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
+                        <button class="btn btn-primary btn-sm mb-2"
+                            onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
                         {% else %}
-                            <!-- Add Remark Button -->
-                            <button class="btn btn-info btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
-                            <button class="btn btn-primary btn-sm mb-2" onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
+                        <!-- Add Remark Button -->
+                        <button class="btn btn-info btn-sm mb-2"
+                            onclick="openRemarksModal('{{ booking.id }}', 'view')">View Remarks</button>
+                        <button class="btn btn-primary btn-sm mb-2"
+                            onclick="openRemarksModal('{{ booking.id }}', 'add')">Add Remark</button>
                         {% endif %}
                     </td>
-                    
+
                     <!-- Modal for Adding/Viewing Remarks -->
-                    <div class="modal fade" id="remarksModal" tabindex="-1" aria-labelledby="remarksModalLabel" aria-hidden="true">
+                    <div class="modal fade" id="remarksModal" tabindex="-1" aria-labelledby="remarksModalLabel"
+                        aria-hidden="true">
                         <div class="modal-dialog modal-lg">
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="remarksModalLabel">Remarks</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body">
                                     <!-- Add Remark Form -->
                                     <div id="addRemarkSection" style="display: none;">
-                                        <form method="POST" action="{{ url_for('admin.add_remark', booking_id=0) }}" id="addRemarkForm">
+                                        <form method="POST" action="{{ url_for('admin.add_remark', booking_id=0) }}"
+                                            id="addRemarkForm">
                                             <div class="mb-3">
                                                 <label for="remarkContent" class="form-label">Add Remark</label>
-                                                <textarea class="form-control" id="remarkContent" name="remark" rows="4" required></textarea>
+                                                <textarea class="form-control" id="remarkContent" name="remark" rows="4"
+                                                    required></textarea>
                                             </div>
                                             <button type="submit" class="btn btn-success">Save Remark</button>
                                         </form>
                                     </div>
-                    
+
                                     <!-- View Remarks Section -->
                                     <div id="viewRemarksSection" style="display: none;">
                                         <ul class="list-group" id="remarksList">
@@ -106,24 +123,32 @@
                     <td>
                         <!-- View PDF Button -->
                         <button class="btn btn-info btn-sm mb-2" onclick="viewPDF('{{ booking.id }}')">View PDF</button>
-                    
+
                         <!-- Approve/Reject Buttons -->
-                        <form method="POST" action="{{ url_for('admin.handle_guest_room_booking', booking_id=booking.id) }}" class="d-inline">
+                        <form method="POST"
+                            action="{{ url_for('admin.handle_guest_room_booking', booking_id=booking.id) }}"
+                            class="d-inline">
                             {% if admin.designation in ["Assistant Registrar (HM)", "Chief Warden"] %}
-                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Accept</button>
-                            {% elif admin.designation == "JA (HM)" and booking.status == "Awaiting Payment from Applicant"  %}
-                                <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Accept</button>
-                            {% elif admin.designation == "JA (HM)" and booking.status == "Awaiting Payment Verification from JA (HM)"  %}
-                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm mb-2">Accept</button>
+                            <button type="submit" name="action" value="approve"
+                                class="btn btn-success btn-sm mb-2">Accept</button>
+                            {% elif admin.designation == "JA (HM)" and booking.status == "Awaiting Payment from Applicant" %}
+                            <button type="submit" name="action" value="approve"
+                                class="btn btn-success btn-sm mb-2">Accept</button>
+                            {% elif admin.designation == "JA (HM)" and booking.status == "Awaiting Payment Verification from JA (HM)" %}
+                            <button type="submit" name="action" value="approve"
+                                class="btn btn-success btn-sm mb-2">Accept</button>
                             {% else %}
-                            <button type="button" class="btn btn-success btn-sm mb-2" onclick="openAllocateModal('{{ booking.id }}')">Allocate</button>
+                            <button type="button" class="btn btn-success btn-sm mb-2"
+                                onclick="openAllocateModal('{{ booking.id }}')">Allocate</button>
                             {% endif %}
-                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm mb-2">Reject</button>
+                            <button type="submit" name="action" value="reject"
+                                class="btn btn-danger btn-sm mb-2">Reject</button>
                         </form>
-                    
+
                         <!-- View Payment Details Button -->
                         {% if booking.payment_details %}
-                        <button class="btn btn-primary btn-sm mb-2" onclick="viewPaymentDetails('{{ booking.id }}')">View Payment Details</button>
+                        <button class="btn btn-primary btn-sm mb-2"
+                            onclick="viewPaymentDetails('{{ booking.id }}')">View Payment Details</button>
                         {% endif %}
                     </td>
                 </tr>
@@ -208,7 +233,8 @@
                     <input type="hidden" name="student_email" id="messageStudentEmail">
                     <div class="mb-3">
                         <label for="messageContent" class="form-label">Message</label>
-                        <textarea class="form-control" id="messageContent" name="message_content" rows="4" required></textarea>
+                        <textarea class="form-control" id="messageContent" name="message_content" rows="4"
+                            required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -218,7 +244,8 @@
         </div>
     </div>
 </div>
-<div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-labelledby="paymentDetailsModalLabel" aria-hidden="true">
+<div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-labelledby="paymentDetailsModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -238,7 +265,8 @@
                 <p><strong>UTR/Transaction No.:</strong> <span id="paymentUTR"></span></p>
                 <p><strong>Component of Amount:</strong> <span id="paymentComponent"></span></p>
                 <p><strong>Declaration:</strong> <span id="paymentDeclaration"></span></p>
-                <p><strong>Payment Proof:</strong> <a id="paymentProofLink" href="#" target="_blank">View Payment Proof</a></p>
+                <p><strong>Payment Proof:</strong> <a id="paymentProofLink" href="#" target="_blank">View Payment
+                        Proof</a></p>
             </div>
         </div>
     </div>
@@ -392,48 +420,49 @@
     }
 </script>
 <script>
-   function openSortInputModal(field) {
-    // Store the selected field in a hidden input or a global variable
-    document.getElementById('sortInputForm').dataset.field = field;
+    function openSortInputModal(field) {
+        // Store the selected field in a hidden input or a global variable
+        document.getElementById('sortInputForm').dataset.field = field;
 
-    // Toggle between text input and date picker
-    const textInput = document.getElementById('sortInputValue');
-    const dateInput = document.getElementById('sortInputDate');
+        // Toggle between text input and date picker
+        const textInput = document.getElementById('sortInputValue');
+        const dateInput = document.getElementById('sortInputDate');
 
-    if (field === 'arrival_date' || field === 'departure_date') {
-        textInput.classList.add('d-none');
-        dateInput.classList.remove('d-none');
-        dateInput.required = true;
-        textInput.required = false;
-    } else {
-        textInput.classList.remove('d-none');
-        dateInput.classList.add('d-none');
-        textInput.required = true;
-        dateInput.required = false;
+        if (field === 'arrival_date' || field === 'departure_date') {
+            textInput.classList.add('d-none');
+            dateInput.classList.remove('d-none');
+            dateInput.required = true;
+            textInput.required = false;
+        } else {
+            textInput.classList.remove('d-none');
+            dateInput.classList.add('d-none');
+            textInput.required = true;
+            dateInput.required = false;
+        }
+
+        // Show the modal
+        const sortInputModal = new bootstrap.Modal(document.getElementById('sortInputModal'));
+        sortInputModal.show();
     }
 
-    // Show the modal
-    const sortInputModal = new bootstrap.Modal(document.getElementById('sortInputModal'));
-    sortInputModal.show();
-}
+    document.getElementById('sortInputForm').addEventListener('submit', function (event) {
+        event.preventDefault();
 
-document.getElementById('sortInputForm').addEventListener('submit', function (event) {
-    event.preventDefault();
+        // Get the selected field and input value
+        const field = event.target.dataset.field;
+        const textValue = document.getElementById('sortInputValue').value;
+        const dateValue = document.getElementById('sortInputDate').value;
 
-    // Get the selected field and input value
-    const field = event.target.dataset.field;
-    const textValue = document.getElementById('sortInputValue').value;
-    const dateValue = document.getElementById('sortInputDate').value;
+        const value = field === 'arrival_date' || field === 'departure_date' ? dateValue : textValue;
 
-    const value = field === 'arrival_date' || field === 'departure_date' ? dateValue : textValue;
+        // Redirect to the URL with the search parameters
+        const searchUrl = new URL(window.location.href);
+        searchUrl.searchParams.set('sort_by', field);
+        searchUrl.searchParams.set('search_value', value);
 
-    // Redirect to the URL with the search parameters
-    const searchUrl = new URL(window.location.href);
-    searchUrl.searchParams.set('sort_by', field);
-    searchUrl.searchParams.set('search_value', value);
-
-    window.location.href = searchUrl.toString();
-});
+        window.location.href = searchUrl.toString();
+    });
+    
 </script>
 <style>
     .room-box {

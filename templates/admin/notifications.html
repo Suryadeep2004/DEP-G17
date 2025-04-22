@@ -20,3 +20,9 @@
     </tbody>
 </table>
 {% endblock %}
+{% for notification in notifications %}
+    <div class="notification">
+        <p>{{ notification.content | safe }}</p>
+        <small>Sent on: {{ notification.timestamp.strftime('%d-%m-%Y %H:%M:%S') }}</small>
+    </div>
+{% endfor %}

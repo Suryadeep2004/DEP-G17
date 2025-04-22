@@ -223,6 +223,21 @@ class GuestRoomBooking(db.Model):
     hostel = db.relationship('Hostel', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
     room = db.relationship('Room', backref=db.backref('guest_room_bookings', cascade='all, delete-orphan'))
 
+    def calculate_amount(self):
+        """
+        Calculate the amount based on the number of guests and room category.
+        """
+        # Determine the rate per person based on the room category
+        rate_per_person = 600 if self.room_category == "AC" else 400
+
+        # Calculate the amount using the greatest integer function (GIF)
+        male_guests_cost = (self.guests_male + 1) // 2 * rate_per_person
+        female_guests_cost = (self.guests_female + 1) // 2 * rate_per_person
+
+        # Total amount
+        total_amount = male_guests_cost + female_guests_cost
+        return total_amount
+
 class ProjectAccommodationRequest(db.Model):
     __tablename__ = 'project_accommodation_request'
     id = db.Column(db.Integer, primary_key=True)
