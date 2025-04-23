@@ -1316,7 +1316,7 @@ def fill_payment_details(booking_id):
             "component_of_amount": component_of_amount,
             "email_confirmation": email_confirmation,
             "declaration": declaration,
-        }
+        } #random
         booking.status = "Awaiting Payment Verification from JA (HM)"
         db.session.commit()
 
