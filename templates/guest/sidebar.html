@@ -1,0 +1,173 @@
+<style>
+    .sidebar {
+        width: 260px;
+        background-color: #0b2c4a;
+        color: #ffffff;
+        position: fixed;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        box-shadow: 4px 0 10px rgba(0, 0, 0, 0.15);
+        font-family: 'Segoe UI', sans-serif;
+        overflow: hidden;
+        transition: width 0.3s ease;
+        z-index: 10;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
+    }
+
+    .toggle-btn {
+        background-color: #0d3c63;
+        color: #ffffff;
+        border: none;
+        padding: 12px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 100%;
+        transition: background-color 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        background-color: #105080;
+    }
+
+    .sidebar-content {
+        overflow-y: auto;
+        width: 100%;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        padding-top: 10px;
+    }
+
+    .sidebar a {
+        text-decoration: none;
+        font-size: 1.05rem;
+        color: #e1ecf4;
+        margin: 6px auto;
+        padding: 12px 20px;
+        width: 90%;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .sidebar a i {
+        margin-right: 10px;
+        font-size: 1.2rem;
+    }
+
+    .sidebar.collapsed a i {
+        margin-right: 0;
+        font-size: 1.5rem;
+        text-align: center;
+        width: 100%;
+    }
+
+    .sidebar.collapsed a span {
+        display: none;
+    }
+
+    .sidebar a:hover {
+        background-color: #105080;
+        color: #ffffff;
+        transform: translateX(3px);
+    }
+
+    .sidebar a:active {
+        background-color: #0a2a44;
+        color: #ffffff;
+    }
+
+    .main-content {
+        margin-left: 260px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        min-height: 100vh;
+        transition: margin-left 0.3s ease;
+    }
+
+    .main-content.collapsed {
+        margin-left: 70px;
+    }
+
+    .header-content {
+        margin-left: 260px;
+        background-color: #f8f9fa;
+        transition: margin-left 0.3s ease;
+    }
+
+    .header-content.collapsed {
+        margin-left: 70px;
+    }
+</style>
+
+<div class="sidebar" id="sidebar">
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar-content">
+        <a href="{{ url_for('guest.profile') }}">
+            <i class="bi bi-person"></i>
+            <span>Manage Profile</span>
+        </a>
+        <a href="{{ url_for('guest.guest_room_booking_form') }}">
+            <i class="bi bi-file-earmark-text"></i>
+            <span>Guest Room Booking Form</span>
+        </a>
+        <a href="{{ url_for('guest.status') }}">
+            <i class="bi bi-clipboard-check"></i>
+            <span>Booking Status</span>
+        </a>
+        {% if guest_room_booking and guest_room_booking.status == "Awaiting Payment from Applicant" %}
+        <a href="{{ url_for('guest.fill_payment_details', booking_id=guest_room_booking.id) }}">
+            <i class="bi bi-cash"></i>
+            <span>Fill Payment Details</span>
+        </a>
+        {% endif %}
+        <a href="/logout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </a>
+    </div>
+</div>
+
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+
+        // Update the collapsed state in localStorage
+        localStorage.setItem('guestSidebarCollapsed', isCollapsed);
+
+        if (mainContent) {
+            mainContent.classList.toggle('collapsed', isCollapsed);
+        }
+        if (headerContent) {
+            headerContent.classList.toggle('collapsed', isCollapsed);
+        }
+    }
+
+    // Restore the sidebar state on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const headerContent = document.querySelector('.header-content');
+        const isCollapsed = localStorage.getItem('guestSidebarCollapsed') === 'true';
+
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            if (mainContent) {
+                mainContent.classList.add('collapsed');
+            }
+            if (headerContent) {
+                headerContent.classList.add('collapsed');
+            }
+        }
+    });
+</script>

@@ -1,0 +1,189 @@
+{% extends "guest/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Application Status</h2>
+
+    <!-- Filter Form -->
+    <form method="POST" action="{{ url_for('guest.status') }}" class="mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="filter_date" class="form-label">Filter by Date:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="filter_date" name="filter_date" class="form-control" value="{{ filter_date }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </form>
+ 
+    <!-- Guest Room Booking Status -->
+    {% if guest_room_bookings %}
+        {% for booking in guest_room_bookings %}
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Guest Room Booking (Application ID: {{ booking.id }})</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Status:</strong> {{ booking.status }}</p>
+
+                <!-- Stepper -->
+                <div class="stepper d-flex justify-content-between align-items-center mt-4">
+                    <!-- Step 1: JA (HM) -->
+                    <div class="step 
+                        {% if booking.status == 'Rejected by JA (HM)' %}
+                            rejected
+                        {% elif booking.status in ['Awaiting Allocation from JA (HM)', 'Awaiting Payment from Applicant', 'Awaiting Payment Verification from JA (HM)', 'Awaiting Payment from Student'] %}
+                            pending
+                        {% elif booking.status in ['Pending approval from Assistant Registrar (HM)', 'Successful Approval', 'Pending approval from Chief Warden', 'Rejected by Assistant Registrar (HM)', 'Rejected by Chief Warden'] %}
+                            completed
+                        {% else %}
+                            normal
+                        {% endif %}">
+                        <div class="circle">1</div>
+                        <p class="text-center mt-2">JA (HM)</p>
+                    </div>
+
+                    <!-- Step 2: AR (HM) -->
+                    <div class="step 
+                        {% if booking.status == 'Rejected by Assistant Registrar (HM)' %}
+                            rejected
+                        {% elif booking.status == 'Pending approval from Assistant Registrar (HM)' %}
+                            pending
+                        {% elif booking.status in ['Successful Approval', 'Rejected by Chief Warden', 'Pending approval from Chief Warden'] %}
+                            completed
+                        {% else %}
+                            normal
+                        {% endif %}">
+                        <div class="circle">2</div>
+                        <p class="text-center mt-2">AR (HM)</p>
+                    </div>
+
+                    <!-- Step 3: Chief Warden -->
+                    <div class="step 
+                        {% if booking.status == 'Rejected by Chief Warden' %}
+                            rejected
+                        {% elif booking.status in ['Successful Approval', 'Approved'] %}
+                            completed
+                        {% elif booking.status == 'Pending approval from Chief Warden' %}
+                            pending
+                        {% else %}
+                            normal
+                        {% endif %}">
+                        <div class="circle">3</div>
+                        <p class="text-center mt-2">Chief Warden</p>
+                    </div>
+                </div>
+
+                <!-- Rejection Note -->
+                {% if 'Rejected' in booking.status %}
+                <p class="text-danger mt-3">
+                    <strong>Note:</strong> Your guest room booking was rejected by 
+                    {% if booking.status == 'Rejected by JA (HM)' %}
+                        JA (HM).
+                    {% elif booking.status == 'Rejected by Assistant Registrar (HM)' %}
+                        Assistant Registrar (HM).
+                    {% elif booking.status == 'Rejected by Chief Warden' %}
+                        Chief Warden.
+                    {% endif %}
+                </p>
+                {% endif %}
+
+                <button class="btn btn-primary mt-3" onclick="viewPDF('{{ booking.id }}')">View Guest Room Booking PDF</button>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No guest room booking applications found.</p>
+    {% endif %}
+</div>
+
+<!-- Modal for Viewing PDF -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfModalLabel">Guest Room Booking PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <iframe id="pdfViewer" src="" width="100%" height="600px" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function viewPDF(bookingId) {
+        const pdfUrl = `/guest/view_guest_room_booking_pdf/${bookingId}`;
+        document.getElementById('pdfViewer').src = pdfUrl;
+        const pdfModal = new bootstrap.Modal(document.getElementById('pdfModal'));
+        pdfModal.show();
+    }
+</script>
+
+<style>
+    .stepper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        margin: 20px 0;
+    }
+
+    .stepper::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background-color: #e0e0e0;
+        z-index: 0;
+    }
+
+    .step {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+    }
+
+    .step .circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #e0e0e0; /* Default gray */
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 18px;
+        margin: 0 auto;
+    }
+
+    .step.completed .circle {
+        background-color: #4caf50; /* Green for completed steps */
+    }
+
+    .step.rejected .circle {
+        background-color: #f44336; /* Red for rejected steps */
+    }
+
+    .step.pending .circle {
+        background-color: #ff9800; /* Yellow for pending steps */
+    }
+
+    .step.normal .circle {
+        background-color: #e0e0e0; /* Gray for untouched steps */
+    }
+
+    .step p {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #333;
+    }
+</style>
+{% endblock %}
