@@ -66,7 +66,7 @@ For any queries, contact the development team or drop an email at `support@hoste
    python3 -m venv venv
    source venv/bin/activate
 
-   ## Install Dependencied
+   ## Install Dependencies
    pip install requirements.txt
 
    ## Run Command
